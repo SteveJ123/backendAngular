@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Ignore everything inside the uploads folder
+uploads/*
+
+# Keep the uploads folder tracked in Git
+!uploads/.gitkeep
+
+.env".env" 
+".env" 
+".env" 
+".env" 
+".env" 
