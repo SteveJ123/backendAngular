@@ -40,7 +40,7 @@
 // import Comment from "./models/Comment.js";
 // import Course from "./models/Course.js";
 // import Notification from "./models/Notification.js";
-//import courseRoutes from "./routes/courseDetails.js"; // Adjust path according to your folder structure
+import courseRoutes from "./routes/courseDetails.js"; // Adjust path according to your folder structure
 // import LiveSession from "./models/LiveSession.js";
 // import Product from "./models/Product.js";
 // import PersonalDetails from "./models/PersonalDetails.js";
@@ -10749,7 +10749,7 @@ app.delete("/api/nutrition/:id", async (req, res) => {
 });
 
 // Mount the course routes under the '/api/courses' prefix
-// app.use("/api/course", courseRoutes);
+app.use("/api/course", courseRoutes);
 
 const PORT = process.env.PORT || 5000;
 // app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
