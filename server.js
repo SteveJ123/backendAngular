@@ -2813,214 +2813,214 @@ app.patch("/api/posts/:postId/like", async (req, res) => {
 });
 
 // GET: Filter courses by language & courseType enrollment
-app.get("/api/courses", async (req, res) => {
-  try {
-    const { courseType, role, language } = req.query;
-    const formattedLang = language;
+// app.get("/api/courses", async (req, res) => {
+//   try {
+//     const { courseType, role, language } = req.query;
+//     const formattedLang = language;
 
-    const filterQuery = {};
+//     const filterQuery = {};
 
-    if (formattedLang) {
-      filterQuery.language = formattedLang;
-    }
+//     if (formattedLang) {
+//       filterQuery.language = formattedLang;
+//     }
 
-    // Filter for non-admin students based on their enrolled courseType
-    if (role !== "admin") {
-      if (!courseType) {
-        return res.status(200).json({
-          success: true,
-          count: 0,
-          data: [],
-        });
-      }
+//     // Filter for non-admin students based on their enrolled courseType
+//     if (role !== "admin") {
+//       if (!courseType) {
+//         return res.status(200).json({
+//           success: true,
+//           count: 0,
+//           data: [],
+//         });
+//       }
 
-      filterQuery.title = courseType.trim();
-    }
+//       filterQuery.title = courseType.trim();
+//     }
 
-    const courses = await Course.find(filterQuery).sort({ createdAt: -1 });
+//     const courses = await Course.find(filterQuery).sort({ createdAt: -1 });
 
-    return res.status(200).json({
-      success: true,
-      count: courses.length,
-      data: courses,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Server error while fetching courses",
-    });
-  }
-});
+//     return res.status(200).json({
+//       success: true,
+//       count: courses.length,
+//       data: courses,
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message || "Server error while fetching courses",
+//     });
+//   }
+// });
 
-// POST: Admin create course
-app.post("/api/courses", async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      instructor,
-      thumbnail,
-      isPaid,
-      isNewCourse,
-      language,
-    } = req.body;
+// // POST: Admin create course
+// app.post("/api/courses", async (req, res) => {
+//   try {
+//     const {
+//       title,
+//       description,
+//       instructor,
+//       thumbnail,
+//       isPaid,
+//       isNewCourse,
+//       language,
+//     } = req.body;
 
-    if (!thumbnail || typeof thumbnail !== "string" || !thumbnail.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Thumbnail URL is required.",
-      });
-    }
+//     if (!thumbnail || typeof thumbnail !== "string" || !thumbnail.trim()) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Thumbnail URL is required.",
+//       });
+//     }
 
-    if (!title || !title.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Course title is required.",
-      });
-    }
+//     if (!title || !title.trim()) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Course title is required.",
+//       });
+//     }
 
-    const formattedLang = language;
-    if (!formattedLang) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid language ('English' or 'Telugu') is required.",
-      });
-    }
+//     const formattedLang = language;
+//     if (!formattedLang) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Valid language ('English' or 'Telugu') is required.",
+//       });
+//     }
 
-    const newCourse = new Course({
-      title: title.trim(),
-      description,
-      instructor: instructor || "Pooja Agarwala",
-      thumbnail: thumbnail.trim(),
-      isPaid: isPaid === "true" || isPaid === true,
-      isNewCourse: isNewCourse === "true" || isNewCourse === true,
-      language: formattedLang,
-      progress: 0,
-      status: "not_started",
-    });
+//     const newCourse = new Course({
+//       title: title.trim(),
+//       description,
+//       instructor: instructor || "Pooja Agarwala",
+//       thumbnail: thumbnail.trim(),
+//       isPaid: isPaid === "true" || isPaid === true,
+//       isNewCourse: isNewCourse === "true" || isNewCourse === true,
+//       language: formattedLang,
+//       progress: 0,
+//       status: "not_started",
+//     });
 
-    const savedCourse = await newCourse.save();
+//     const savedCourse = await newCourse.save();
 
-    return res.status(201).json({
-      success: true,
-      message: "Course created successfully",
-      data: savedCourse,
-    });
-  } catch (error) {
-    console.error("Error creating course:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Server error while creating course",
-    });
-  }
-});
+//     return res.status(201).json({
+//       success: true,
+//       message: "Course created successfully",
+//       data: savedCourse,
+//     });
+//   } catch (error) {
+//     console.error("Error creating course:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message || "Server error while creating course",
+//     });
+//   }
+// });
 
-// PUT: Admin update course
-app.put("/api/courses/:id", async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
+// // PUT: Admin update course
+// app.put("/api/courses/:id", async (req, res) => {
+//   try {
+//     const course = await Course.findById(req.params.id);
 
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        message: "Course not found",
-      });
-    }
+//     if (!course) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Course not found",
+//       });
+//     }
 
-    // Update string and numeric fields if provided
-    if (req.body.title !== undefined) course.title = req.body.title.trim();
-    if (req.body.description !== undefined)
-      course.description = req.body.description;
-    if (req.body.instructor !== undefined)
-      course.instructor = req.body.instructor;
-    if (req.body.status !== undefined) course.status = req.body.status;
-    if (req.body.progress !== undefined)
-      course.progress = Number(req.body.progress);
-    if (req.body.language !== undefined) course.language = req.body.language;
+//     // Update string and numeric fields if provided
+//     if (req.body.title !== undefined) course.title = req.body.title.trim();
+//     if (req.body.description !== undefined)
+//       course.description = req.body.description;
+//     if (req.body.instructor !== undefined)
+//       course.instructor = req.body.instructor;
+//     if (req.body.status !== undefined) course.status = req.body.status;
+//     if (req.body.progress !== undefined)
+//       course.progress = Number(req.body.progress);
+//     if (req.body.language !== undefined) course.language = req.body.language;
 
-    // Handle boolean flags
-    if (req.body.isPaid !== undefined) {
-      course.isPaid = req.body.isPaid === "true" || req.body.isPaid === true;
-    }
-    if (req.body.isNewCourse !== undefined) {
-      course.isNewCourse =
-        req.body.isNewCourse === "true" || req.body.isNewCourse === true;
-    }
+//     // Handle boolean flags
+//     if (req.body.isPaid !== undefined) {
+//       course.isPaid = req.body.isPaid === "true" || req.body.isPaid === true;
+//     }
+//     if (req.body.isNewCourse !== undefined) {
+//       course.isNewCourse =
+//         req.body.isNewCourse === "true" || req.body.isNewCourse === true;
+//     }
 
-    // Clean up old S3 file if a new thumbnail URL is provided and differs from existing
-    if (req.body.thumbnail && req.body.thumbnail !== course.thumbnail) {
-      if (course.thumbnail) {
-        const oldS3Key = getS3KeyFromUrl(course.thumbnail);
-        if (oldS3Key) {
-          try {
-            await s3.send(
-              new DeleteObjectCommand({
-                Bucket: process.env.AWS_BUCKET_NAME || bucketName,
-                Key: oldS3Key,
-              }),
-            );
-            console.log(`Deleted old thumbnail S3 key: ${oldS3Key}`);
-          } catch (s3Err) {
-            console.error(`Failed to delete old S3 key (${oldS3Key}):`, s3Err);
-          }
-        }
-      }
-      course.thumbnail = req.body.thumbnail.trim();
-    }
+//     // Clean up old S3 file if a new thumbnail URL is provided and differs from existing
+//     if (req.body.thumbnail && req.body.thumbnail !== course.thumbnail) {
+//       if (course.thumbnail) {
+//         const oldS3Key = getS3KeyFromUrl(course.thumbnail);
+//         if (oldS3Key) {
+//           try {
+//             await s3.send(
+//               new DeleteObjectCommand({
+//                 Bucket: process.env.AWS_BUCKET_NAME || bucketName,
+//                 Key: oldS3Key,
+//               }),
+//             );
+//             console.log(`Deleted old thumbnail S3 key: ${oldS3Key}`);
+//           } catch (s3Err) {
+//             console.error(`Failed to delete old S3 key (${oldS3Key}):`, s3Err);
+//           }
+//         }
+//       }
+//       course.thumbnail = req.body.thumbnail.trim();
+//     }
 
-    const updatedCourse = await course.save();
+//     const updatedCourse = await course.save();
 
-    return res.status(200).json({
-      success: true,
-      message: "Course updated successfully",
-      data: updatedCourse,
-    });
-  } catch (error) {
-    console.error("Error updating course:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Server error while updating course",
-    });
-  }
-});
+//     return res.status(200).json({
+//       success: true,
+//       message: "Course updated successfully",
+//       data: updatedCourse,
+//     });
+//   } catch (error) {
+//     console.error("Error updating course:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message || "Server error while updating course",
+//     });
+//   }
+// });
 
-// DELETE: Admin remove a course and its thumbnail image
-app.delete("/api/courses/:id", async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
+// // DELETE: Admin remove a course and its thumbnail image
+// app.delete("/api/courses/:id", async (req, res) => {
+//   try {
+//     const course = await Course.findById(req.params.id);
 
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        message: "Course not found.",
-      });
-    }
+//     if (!course) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Course not found.",
+//       });
+//     }
 
-    // 1. Delete thumbnail file from disk storage if present
-    if (course.thumbnail) {
-      const fileName = course.thumbnail.split("/uploads/").pop();
-      if (fileName) {
-        const filePath = path.join(process.cwd(), "uploads", fileName);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      }
-    }
+//     // 1. Delete thumbnail file from disk storage if present
+//     if (course.thumbnail) {
+//       const fileName = course.thumbnail.split("/uploads/").pop();
+//       if (fileName) {
+//         const filePath = path.join(process.cwd(), "uploads", fileName);
+//         if (fs.existsSync(filePath)) {
+//           fs.unlinkSync(filePath);
+//         }
+//       }
+//     }
 
-    // 2. Remove document from MongoDB
-    await Course.findByIdAndDelete(req.params.id);
+//     // 2. Remove document from MongoDB
+//     await Course.findByIdAndDelete(req.params.id);
 
-    return res.status(200).json({
-      success: true,
-      message: "Course and thumbnail deleted successfully.",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Server error while deleting course.",
-    });
-  }
-});
+//     return res.status(200).json({
+//       success: true,
+//       message: "Course and thumbnail deleted successfully.",
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message || "Server error while deleting course.",
+//     });
+//   }
+// });
 
 // app.get("/api/notifications", async (req, res) => {
 //   try {
@@ -4934,57 +4934,220 @@ app.delete("/api/posts/:id", async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
-// CREATE SESSION
-// app.post("/api/session", async (req, res) => {
-//   try {
-//     const {
-//       title,
-//       date,
-//       startTime,
-//       endTime,
-//       occurrence,
-//       linkTypeNote,
-//       meetingUrl,
-//       courseType,
-//       language,
-//     } = req.body;
 
-//     const formattedLang = language;
+// GET COURSES
+app.get("/api/courses", async (req, res) => {
+  try {
+    const { courseType, role, language } = req.query;
+    const formattedLang = language;
 
-//     if (
-//       !title ||
-//       !date ||
-//       !startTime ||
-//       !endTime ||
-//       !meetingUrl ||
-//       !courseType ||
-//       !formattedLang
-//     ) {
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "Missing required fields." });
-//     }
+    const whereClause = {};
 
-//     const newSession = new LiveSession({
-//       title,
-//       date,
-//       startTime,
-//       endTime,
-//       occurrence,
-//       linkTypeNote,
-//       meetingUrl,
-//       courseType,
-//       language: formattedLang,
-//     });
+    if (formattedLang) {
+      whereClause.language = formattedLang;
+    }
 
-//     const savedSession = await newSession.save();
-//     return res.status(201).json({ success: true, data: savedSession });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
+    // Filter for non-admin students based on their enrolled courseType
+    if (role !== "admin") {
+      if (!courseType) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+        });
+      }
+
+      whereClause.title = courseType.trim();
+    }
+
+    const courses = await Course.findAll({
+      where: whereClause,
+      order: [["createdAt", "DESC"]],
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: courses.length,
+      data: courses,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error while fetching courses",
+    });
+  }
+});
+
+// CREATE COURSE
+app.post("/api/courses", async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      instructor,
+      thumbnail,
+      isPaid,
+      isNewCourse,
+      language,
+    } = req.body;
+
+    if (!thumbnail || typeof thumbnail !== "string" || !thumbnail.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Thumbnail URL is required.",
+      });
+    }
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Course title is required.",
+      });
+    }
+
+    const formattedLang = language;
+    if (!formattedLang) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid language ('English' or 'Telugu') is required.",
+      });
+    }
+
+    const savedCourse = await Course.create({
+      title: title.trim(),
+      description,
+      instructor: instructor || "Pooja Agarwala",
+      thumbnail: thumbnail.trim(),
+      isPaid: isPaid === "true" || isPaid === true,
+      isNewCourse: isNewCourse === "true" || isNewCourse === true,
+      language: formattedLang,
+      progress: 0,
+      status: "not_started",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Course created successfully",
+      data: savedCourse,
+    });
+  } catch (error) {
+    console.error("Error creating course:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error while creating course",
+    });
+  }
+});
+
+// UPDATE COURSE
+app.put("/api/courses/:id", async (req, res) => {
+  try {
+    const course = await Course.findByPk(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    // Update string and numeric fields if provided
+    if (req.body.title !== undefined) course.title = req.body.title.trim();
+    if (req.body.description !== undefined)
+      course.description = req.body.description;
+    if (req.body.instructor !== undefined)
+      course.instructor = req.body.instructor;
+    if (req.body.status !== undefined) course.status = req.body.status;
+    if (req.body.progress !== undefined)
+      course.progress = Number(req.body.progress);
+    if (req.body.language !== undefined) course.language = req.body.language;
+
+    // Handle boolean flags
+    if (req.body.isPaid !== undefined) {
+      course.isPaid = req.body.isPaid === "true" || req.body.isPaid === true;
+    }
+    if (req.body.isNewCourse !== undefined) {
+      course.isNewCourse =
+        req.body.isNewCourse === "true" || req.body.isNewCourse === true;
+    }
+
+    // Clean up old S3 file if a new thumbnail URL is provided and differs from existing
+    if (req.body.thumbnail && req.body.thumbnail !== course.thumbnail) {
+      if (course.thumbnail) {
+        const oldS3Key = getS3KeyFromUrl(course.thumbnail);
+        if (oldS3Key) {
+          try {
+            await s3.send(
+              new DeleteObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME || bucketName,
+                Key: oldS3Key,
+              }),
+            );
+            console.log(`Deleted old thumbnail S3 key: ${oldS3Key}`);
+          } catch (s3Err) {
+            console.error(`Failed to delete old S3 key (${oldS3Key}):`, s3Err);
+          }
+        }
+      }
+      course.thumbnail = req.body.thumbnail.trim();
+    }
+
+    const updatedCourse = await course.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Course updated successfully",
+      data: updatedCourse,
+    });
+  } catch (error) {
+    console.error("Error updating course:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error while updating course",
+    });
+  }
+});
+
+// DELETE COURSE
+app.delete("/api/courses/:id", async (req, res) => {
+  try {
+    const course = await Course.findByPk(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found.",
+      });
+    }
+
+    // 1. Delete thumbnail file from disk storage if present
+    if (course.thumbnail) {
+      const fileName = course.thumbnail.split("/uploads/").pop();
+      if (fileName) {
+        const filePath = path.join(process.cwd(), "uploads", fileName);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+    }
+
+    // 2. Remove record from database
+    await course.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: "Course and thumbnail deleted successfully.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error while deleting course.",
+    });
+  }
+});
 
 // sql
+// CREATE SESSION
 app.post("/api/session", async (req, res) => {
   try {
     const {
@@ -5015,377 +5178,105 @@ app.post("/api/session", async (req, res) => {
         .json({ success: false, message: "Missing required fields." });
     }
 
-    // 1. Insert new live session record into MySQL
-    const insertQuery = `
-      INSERT INTO livesessions 
-        (title, date, startTime, endTime, occurrence, linkTypeNote, meetingUrl, courseType, language) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const [result] = await db.execute(insertQuery, [
+    const savedSession = await LiveSession.create({
       title,
       date,
       startTime,
       endTime,
-      occurrence || null,
-      linkTypeNote || null,
+      occurrence,
+      linkTypeNote,
       meetingUrl,
       courseType,
-      formattedLang,
-    ]);
-
-    // 2. Fetch the newly inserted record to return in the response
-    const [rows] = await db.execute("SELECT * FROM livesessions WHERE id = ?", [
-      result.insertId,
-    ]);
-
-    return res.status(201).json({
-      success: true,
-      data: rows[0],
+      language: formattedLang,
     });
+
+    return res.status(201).json({ success: true, data: savedSession });
   } catch (error) {
-    console.error("Error creating live session:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// app.get("/api/session", async (req, res) => {
-//   try {
-//     const { language, courseType, role } = req.query;
-
-//     const filter = {};
-
-//     // 1. Language filter (applies to both Users and Admins)
-//     if (language) {
-//       const lower = language.toLowerCase();
-//       if (lower === "te" || lower === "telugu") filter.language = "Telugu";
-//       else if (lower === "en" || lower === "english")
-//         filter.language = "English";
-//       else filter.language = language;
-//     }
-
-//     // 2. CourseType filter (ONLY applied if user is NOT an admin)
-//     const isAdmin = role && role.toLowerCase() === "admin";
-//     if (!isAdmin && courseType) {
-//       filter.courseType = courseType;
-//     }
-
-//     const sessions = await LiveSession.find(filter).sort({ createdAt: -1 });
-
-//     return res.status(200).json({ success: true, data: sessions });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-// app.get("/api/session", async (req, res) => {
-//   try {
-//     const { language, courseType, role } = req.query;
-
-//     const filter = {};
-
-//     // 1. Language filter (applies to both Users and Admins)
-//     if (language) {
-//       const lower = language.toLowerCase();
-//       if (lower === "te" || lower === "telugu") filter.language = "Telugu";
-//       else if (lower === "en" || lower === "english")
-//         filter.language = "English";
-//       else filter.language = language;
-//     }
-
-//     // 2. CourseType filter (ONLY applied if user is NOT an admin)
-//     const isAdmin = role && role.toLowerCase() === "admin";
-//     if (!isAdmin && courseType) {
-//       filter.courseType = courseType;
-//     }
-
-//     const sessions = await LiveSession.find(filter).sort({ createdAt: -1 });
-
-//     return res.status(200).json({ success: true, data: sessions });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-// sql
+// GET SESSIONS
 app.get("/api/session", async (req, res) => {
   try {
     const { language, courseType, role } = req.query;
 
-    const conditions = [];
-    const queryParams = [];
+    const whereClause = {};
 
     // 1. Language filter (applies to both Users and Admins)
     if (language) {
       const lower = language.toLowerCase();
-      let targetLanguage = language;
-      if (lower === "te" || lower === "telugu") targetLanguage = "Telugu";
+      if (lower === "te" || lower === "telugu") whereClause.language = "Telugu";
       else if (lower === "en" || lower === "english")
-        targetLanguage = "English";
-
-      conditions.push("language = ?");
-      queryParams.push(targetLanguage);
+        whereClause.language = "English";
+      else whereClause.language = language;
     }
 
     // 2. CourseType filter (ONLY applied if user is NOT an admin)
     const isAdmin = role && role.toLowerCase() === "admin";
     if (!isAdmin && courseType) {
-      conditions.push("courseType = ?");
-      queryParams.push(courseType);
+      whereClause.courseType = courseType;
     }
 
-    // 3. Construct dynamic SQL query
-    let sql = "SELECT * FROM livesessions";
-    if (conditions.length > 0) {
-      sql += " WHERE " + conditions.join(" AND ");
-    }
-    sql += " ORDER BY created_at DESC";
-
-    const [sessions] = await db.execute(sql, queryParams);
+    const sessions = await LiveSession.findAll({
+      where: whereClause,
+      order: [["createdAt", "DESC"]],
+    });
 
     return res.status(200).json({ success: true, data: sessions });
   } catch (error) {
-    console.error("Error fetching live sessions:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
+
 // UPDATE SESSION
-// app.put("/api/session/:id", async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const updateData = { ...req.body };
-
-//     if (updateData.language) {
-//       updateData.language = updateData.language;
-//     }
-
-//     const updatedSession = await LiveSession.findByIdAndUpdate(id, updateData, {
-//       new: true,
-//     });
-
-//     if (!updatedSession) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Session not found." });
-//     }
-
-//     return res.status(200).json({ success: true, data: updatedSession });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-// sql
 app.put("/api/session/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
 
-    // 1. Defined list of allowed columns to prevent SQL injection or bad fields
-    const allowedFields = [
-      "title",
-      "date",
-      "startTime",
-      "endTime",
-      "occurrence",
-      "linkTypeNote",
-      "meetingUrl",
-      "courseType",
-      "language",
-    ];
-
-    const updates = [];
-    const queryParams = [];
-
-    // 2. Build SET clause dynamically for fields provided in req.body
-    allowedFields.forEach((field) => {
-      if (updateData[field] !== undefined) {
-        updates.push(`${field} = ?`);
-        queryParams.push(updateData[field]);
-      }
-    });
-
-    if (updates.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No valid fields provided for update.",
-      });
+    if (updateData.language) {
+      updateData.language = updateData.language;
     }
 
-    // Append id parameter for the WHERE clause
-    queryParams.push(id);
+    const session = await LiveSession.findByPk(id);
 
-    const updateQuery = `
-      UPDATE live_sessions 
-      SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = ?
-    `;
-
-    // 3. Execute UPDATE query
-    const [result] = await db.execute(updateQuery, queryParams);
-
-    if (result.affectedRows === 0) {
+    if (!session) {
       return res
         .status(404)
         .json({ success: false, message: "Session not found." });
     }
 
-    // 4. Fetch and return the updated record
-    const [rows] = await db.execute(
-      "SELECT * FROM live_sessions WHERE id = ?",
-      [id],
-    );
+    const updatedSession = await session.update(updateData);
 
-    return res.status(200).json({ success: true, data: rows[0] });
+    return res.status(200).json({ success: true, data: updatedSession });
   } catch (error) {
-    console.error("Error updating live session:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // DELETE SESSION
-// app.delete("/api/session/:id", async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const deletedSession = await LiveSession.findByIdAndDelete(id);
-
-//     if (!deletedSession) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Session not found." });
-//     }
-
-//     return res
-//       .status(200)
-//       .json({ success: true, message: "Session deleted successfully." });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-// sql
 app.delete("/api/session/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const session = await LiveSession.findByPk(id);
 
-    // 1. Execute DELETE query
-    const [result] = await db.execute(
-      "DELETE FROM live_sessions WHERE id = ?",
-      [id],
-    );
-
-    // 2. Check if any row was deleted
-    if (result.affectedRows === 0) {
+    if (!session) {
       return res
         .status(404)
         .json({ success: false, message: "Session not found." });
     }
 
+    await session.destroy();
+
     return res
       .status(200)
       .json({ success: true, message: "Session deleted successfully." });
   } catch (error) {
-    console.error("Error deleting live session:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// GET: Fetch products filtered by language
-// app.get("/api/products", async (req, res) => {
-//   try {
-//     const { language } = req.query;
-//     const formattedLang = language;
-
-//     const filter = {};
-//     if (formattedLang) filter.language = formattedLang;
-
-//     const products = await Product.find(filter).sort({ createdAt: -1 });
-//     return res
-//       .status(200)
-//       .json({ success: true, count: products.length, data: products });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-// // POST: Admin create new product link with language
-// app.post("/api/products", async (req, res) => {
-//   try {
-//     const { title, productUrl, imageUrl, language } = req.body;
-//     const formattedLang = language;
-
-//     if (!title || !productUrl || !imageUrl || !formattedLang) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Missing required fields including language.",
-//       });
-//     }
-
-//     const newProduct = new Product({
-//       title,
-//       productUrl,
-//       imageUrl,
-//       language: formattedLang,
-//     });
-//     const savedProduct = await newProduct.save();
-
-//     return res.status(201).json({ success: true, data: savedProduct });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-// // PUT: Admin update existing product
-// app.put("/api/products/:id", async (req, res) => {
-//   try {
-//     const { title, productUrl, imageUrl, language } = req.body;
-//     const updateFields = {};
-
-//     if (title) updateFields.title = title;
-//     if (productUrl) updateFields.productUrl = productUrl;
-//     if (imageUrl) updateFields.imageUrl = imageUrl;
-//     if (language) updateFields.language = language;
-
-//     const updatedProduct = await Product.findByIdAndUpdate(
-//       req.params.id,
-//       { $set: updateFields },
-//       { new: true, runValidators: true },
-//     );
-
-//     if (!updatedProduct) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Product not found." });
-//     }
-
-//     return res.status(200).json({ success: true, data: updatedProduct });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-// // DELETE: Admin remove product
-// app.delete("/api/products/:id", async (req, res) => {
-//   try {
-//     const deletedProduct = await Product.findByIdAndDelete(req.params.id);
-
-//     if (!deletedProduct) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Product not found." });
-//     }
-
-//     return res
-//       .status(200)
-//       .json({ success: true, message: "Product deleted successfully." });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-
-// sql
-// GET: Fetch products filtered by language
 app.get("/api/products", async (req, res) => {
   try {
     const { language } = req.query;
@@ -5512,15 +5403,6 @@ app.get("/api/tracker-status/:userId", async (req, res) => {
 app.post("/api/complete-today", async (req, res) => {
   const { userId } = req.body;
 
-  // Format current server date to YYYY-MM-DD
-  // const todayStr = new Date().toISOString().split("T")[0];
-  // Format current date to YYYY-MM-DD using Local Server Time zone
-  // const now = new Date();
-  // const year = now.getFullYear();
-  // const month = String(now.getMonth() + 1).padStart(2, "0");
-  // const day = String(now.getDate()).padStart(2, "0");
-  // const todayStr = `${year}-${month}-${day}`;
-
   const now = new Date();
 
   // Extract YYYY, MM, DD relative to Asia/Kolkata
@@ -5538,11 +5420,27 @@ app.post("/api/complete-today", async (req, res) => {
   const todayStr = `${year}-${month}-${day}`;
 
   try {
-    const user = await User.findById(userId);
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
+    }
+
+    // Parse array if stored as stringified JSON in DB column
+    let completedPracticeDates = user.completedPracticeDates || [];
+    if (typeof completedPracticeDates === "string") {
+      try {
+        completedPracticeDates = JSON.parse(completedPracticeDates);
+      } catch {
+        completedPracticeDates = [];
+      }
+    }
 
     // Guard: Prevent double-claiming today
     console.log("todayStr", todayStr);
-    if (user.completedPracticeDates.includes(todayStr)) {
+    if (completedPracticeDates.includes(todayStr)) {
       return res.json({
         success: true,
         message: "Daily practice already completed for today.",
@@ -5550,10 +5448,15 @@ app.post("/api/complete-today", async (req, res) => {
     }
 
     // Append today's date and increment points by 10
-    user.completedPracticeDates.push(todayStr);
-    user.points += 10;
+    const updatedDates = [...completedPracticeDates, todayStr];
+    const newPoints = (user.points || 0) + 10;
 
-    await user.save();
+    // Direct update to trigger proper change tracking on JSON columns/arrays
+    await user.update({
+      completedPracticeDates: updatedDates,
+      points: newPoints,
+    });
+
     return res.json({
       success: true,
       points: user.points,
@@ -6461,7 +6364,6 @@ app.get("/api/admin-users-tracker", async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
-
 
 // app.post("/api/admin-posts", async (req, res) => {
 //   try {
@@ -10733,6 +10635,116 @@ app.delete("/api/events/:id", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET ALL ITEMS
+app.get("/api/nutrition", async (req, res) => {
+  try {
+    const { language } = req.query;
+    const whereClause = {};
+
+    if (language) {
+      const targetLang =
+        language.toLowerCase() === "te" || language.toLowerCase() === "telugu"
+          ? "Telugu"
+          : "English";
+      whereClause.language = targetLang;
+    }
+
+    const items = await Nutrition.findAll({
+      where: whereClause,
+      order: [["createdAt", "DESC"]],
+    });
+
+    return res.status(200).json({ success: true, data: items });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET SINGLE ITEM BY ID
+app.get("/api/nutrition/:id", async (req, res) => {
+  try {
+    const item = await Nutrition.findByPk(req.params.id);
+
+    if (!item) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Item not found" });
+    }
+
+    return res.status(200).json({ success: true, data: item });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// CREATE ITEM
+app.post("/api/nutrition", async (req, res) => {
+  try {
+    const { title, category, language, imageUrl, ingredients, description } =
+      req.body;
+
+    if (!imageUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "Image URL is required",
+      });
+    }
+
+    const newItem = await Nutrition.create({
+      title,
+      category,
+      language,
+      imageUrl,
+      ingredients,
+      description,
+    });
+
+    return res.status(201).json({ success: true, data: newItem });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// UPDATE ITEM
+app.put("/api/nutrition/:id", async (req, res) => {
+  try {
+    const item = await Nutrition.findByPk(req.params.id);
+
+    if (!item) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Item not found" });
+    }
+
+    const updatedItem = await item.update(req.body);
+
+    return res.status(200).json({ success: true, data: updatedItem });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE ITEM
+app.delete("/api/nutrition/:id", async (req, res) => {
+  try {
+    const item = await Nutrition.findByPk(req.params.id);
+
+    if (!item) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Item not found" });
+    }
+
+    await item.destroy();
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Item deleted successfully" });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
