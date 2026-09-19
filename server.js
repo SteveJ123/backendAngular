@@ -102,6 +102,15 @@ import {
   AdminComment,
   PersonalDetails,
   Notification,
+  Course,
+  Lecture,
+  CourseDetails,
+  LectureDetails,
+  Event,
+  LiveSession,
+  Product,
+  SupportTeam,
+  Nutrition,
 } from "./models/index.js";
 
 // 7. Express App Initialization
@@ -5282,15 +5291,114 @@ app.delete("/api/session/:id", async (req, res) => {
 });
 
 // GET: Fetch products filtered by language
+// app.get("/api/products", async (req, res) => {
+//   try {
+//     const { language } = req.query;
+//     const formattedLang = language;
+
+//     const filter = {};
+//     if (formattedLang) filter.language = formattedLang;
+
+//     const products = await Product.find(filter).sort({ createdAt: -1 });
+//     return res
+//       .status(200)
+//       .json({ success: true, count: products.length, data: products });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // POST: Admin create new product link with language
+// app.post("/api/products", async (req, res) => {
+//   try {
+//     const { title, productUrl, imageUrl, language } = req.body;
+//     const formattedLang = language;
+
+//     if (!title || !productUrl || !imageUrl || !formattedLang) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Missing required fields including language.",
+//       });
+//     }
+
+//     const newProduct = new Product({
+//       title,
+//       productUrl,
+//       imageUrl,
+//       language: formattedLang,
+//     });
+//     const savedProduct = await newProduct.save();
+
+//     return res.status(201).json({ success: true, data: savedProduct });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // PUT: Admin update existing product
+// app.put("/api/products/:id", async (req, res) => {
+//   try {
+//     const { title, productUrl, imageUrl, language } = req.body;
+//     const updateFields = {};
+
+//     if (title) updateFields.title = title;
+//     if (productUrl) updateFields.productUrl = productUrl;
+//     if (imageUrl) updateFields.imageUrl = imageUrl;
+//     if (language) updateFields.language = language;
+
+//     const updatedProduct = await Product.findByIdAndUpdate(
+//       req.params.id,
+//       { $set: updateFields },
+//       { new: true, runValidators: true },
+//     );
+
+//     if (!updatedProduct) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Product not found." });
+//     }
+
+//     return res.status(200).json({ success: true, data: updatedProduct });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // DELETE: Admin remove product
+// app.delete("/api/products/:id", async (req, res) => {
+//   try {
+//     const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+
+//     if (!deletedProduct) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Product not found." });
+//     }
+
+//     return res
+//       .status(200)
+//       .json({ success: true, message: "Product deleted successfully." });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+
+// sql
+// GET: Fetch products filtered by language
 app.get("/api/products", async (req, res) => {
   try {
     const { language } = req.query;
     const formattedLang = language;
 
-    const filter = {};
-    if (formattedLang) filter.language = formattedLang;
+    const whereClause = {};
+    if (formattedLang) whereClause.language = formattedLang;
 
-    const products = await Product.find(filter).sort({ createdAt: -1 });
+    const products = await Product.findAll({
+      where: whereClause,
+      order: [["createdAt", "DESC"]],
+    });
+
     return res
       .status(200)
       .json({ success: true, count: products.length, data: products });
@@ -5312,13 +5420,12 @@ app.post("/api/products", async (req, res) => {
       });
     }
 
-    const newProduct = new Product({
+    const savedProduct = await Product.create({
       title,
       productUrl,
       imageUrl,
       language: formattedLang,
     });
-    const savedProduct = await newProduct.save();
 
     return res.status(201).json({ success: true, data: savedProduct });
   } catch (error) {
@@ -5330,26 +5437,23 @@ app.post("/api/products", async (req, res) => {
 app.put("/api/products/:id", async (req, res) => {
   try {
     const { title, productUrl, imageUrl, language } = req.body;
-    const updateFields = {};
 
-    if (title) updateFields.title = title;
-    if (productUrl) updateFields.productUrl = productUrl;
-    if (imageUrl) updateFields.imageUrl = imageUrl;
-    if (language) updateFields.language = language;
+    const product = await Product.findByPk(req.params.id);
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      { $set: updateFields },
-      { new: true, runValidators: true },
-    );
-
-    if (!updatedProduct) {
+    if (!product) {
       return res
         .status(404)
         .json({ success: false, message: "Product not found." });
     }
 
-    return res.status(200).json({ success: true, data: updatedProduct });
+    if (title) product.title = title;
+    if (productUrl) product.productUrl = productUrl;
+    if (imageUrl) product.imageUrl = imageUrl;
+    if (language) product.language = language;
+
+    await product.save();
+
+    return res.status(200).json({ success: true, data: product });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -5358,13 +5462,15 @@ app.put("/api/products/:id", async (req, res) => {
 // DELETE: Admin remove product
 app.delete("/api/products/:id", async (req, res) => {
   try {
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+    const product = await Product.findByPk(req.params.id);
 
-    if (!deletedProduct) {
+    if (!product) {
       return res
         .status(404)
         .json({ success: false, message: "Product not found." });
     }
+
+    await product.destroy();
 
     return res
       .status(200)
@@ -5458,13 +5564,13 @@ app.post("/api/complete-today", async (req, res) => {
   }
 });
 
-// Helper to get date strings in YYYY-MM-DD
-function getFormattedDate(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+// // Helper to get date strings in YYYY-MM-DD
+// function getFormattedDate(date) {
+//   const y = date.getFullYear();
+//   const m = String(date.getMonth() + 1).padStart(2, "0");
+//   const d = String(date.getDate()).padStart(2, "0");
+//   return `${y}-${m}-${d}`;
+// }
 
 // app.get("/api/leaderboard", async (req, res) => {
 //   try {
@@ -5906,6 +6012,244 @@ function getFormattedDate(date) {
 //   }
 // });
 
+// app.get("/api/leaderboard", async (req, res) => {
+//   try {
+//     const { lang } = req.query; // 'English' or 'Telugu'
+//     const now = new Date();
+
+//     // 1. Current Month Prefix (YYYY-MM)
+//     const year = now.getFullYear();
+//     const month = String(now.getMonth() + 1).padStart(2, "0");
+//     const currentMonthPrefix = `${year}-${month}`;
+
+//     // 2. Current Week Bounds (Monday to Sunday)
+//     const currentDayOfWeek = now.getDay();
+//     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+
+//     const monday = new Date(now);
+//     monday.setDate(now.getDate() + distanceToMon);
+
+//     const sunday = new Date(monday);
+//     sunday.setDate(monday.getDate() + 6);
+
+//     const startOfWeekStr = getFormattedDate(monday); // Expected YYYY-MM-DD
+//     const endOfWeekStr = getFormattedDate(sunday); // Expected YYYY-MM-DD
+
+//     // 3. Build Base SQL Query
+//     let baseWhereClause = "";
+//     const params = [currentMonthPrefix, startOfWeekStr, endOfWeekStr];
+
+//     if (lang) {
+//       baseWhereClause = "WHERE language = ?";
+//       params.push(lang);
+//     }
+
+//     const baseQuery = `
+//       SELECT
+//         id AS _id,
+//         username,
+//         language,
+//         points,
+//         completedPracticeDates,
+
+//         -- Calculate count of completed dates in current month
+//         (
+//           SELECT COUNT(*)
+//           FROM JSON_TABLE(
+//             COALESCE(completedPracticeDates, '[]'),
+//             '$[*]' COLUMNS (
+//               dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
+//             )
+//           ) AS m_dates
+//           WHERE m_dates.dateStr LIKE CONCAT(CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%')
+//         ) AS monthlyCount,
+
+//         -- Calculate count of completed dates in current week
+//         (
+//           SELECT COUNT(*)
+//           FROM JSON_TABLE(
+//             COALESCE(completedPracticeDates, '[]'),
+//             '$[*]' COLUMNS (
+//               dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
+//             )
+//           ) AS w_dates
+//           WHERE w_dates.dateStr >= CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+//             AND w_dates.dateStr <= CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+//         ) AS weeklyCount
+//       FROM register
+//       ${baseWhereClause}
+//     `;
+
+//     // 4. Run queries in parallel
+//     const [allTimeRows] = await db.execute(
+//       `${baseQuery} ORDER BY points DESC LIMIT 4`,
+//       params,
+//     );
+
+//     const [monthlyRows] = await db.execute(
+//       `${baseQuery} ORDER BY monthlyCount DESC, points DESC LIMIT 4`,
+//       params,
+//     );
+
+//     const [weeklyRows] = await db.execute(
+//       `${baseQuery} ORDER BY weeklyCount DESC, points DESC LIMIT 4`,
+//       params,
+//     );
+
+//     // Helper to format output structure safely
+//     const formatUser = (user) => {
+//       let dates = user.completedPracticeDates;
+//       if (typeof dates === "string") {
+//         try {
+//           dates = JSON.parse(dates || "[]");
+//         } catch {
+//           dates = [];
+//         }
+//       }
+//       return {
+//         _id: user._id,
+//         username: user.username || "",
+//         language: user.language || "",
+//         points: user.points || 0,
+//         completedPracticeDates: dates || [],
+//         monthlyCount: Number(user.monthlyCount || 0),
+//         weeklyCount: Number(user.weeklyCount || 0),
+//       };
+//     };
+
+//     return res.json({
+//       success: true,
+//       allTime: allTimeRows.map(formatUser),
+//       monthly: monthlyRows.map(formatUser),
+//       weekly: weeklyRows.map(formatUser),
+//     });
+//   } catch (err) {
+//     console.error("Error fetching leaderboard:", err);
+//     return res.status(500).json({ success: false, message: err.message });
+//   }
+// });
+
+// Helper function to format Date object into YYYY-MM-DD
+// function getFormattedDate(date) {
+//   const y = date.getFullYear();
+//   const m = String(date.getMonth() + 1).padStart(2, "0");
+//   const d = String(date.getDate()).padStart(2, "0");
+//   return `${y}-${m}-${d}`;
+// }
+
+// app.get("/api/leaderboard", async (req, res) => {
+//   try {
+//     const { lang } = req.query; // 'English' or 'Telugu'
+//     const now = new Date();
+
+//     // 1. Current Month Prefix (YYYY-MM)
+//     const year = now.getFullYear();
+//     const month = String(now.getMonth() + 1).padStart(2, "0");
+//     const currentMonthPrefix = `${year}-${month}`;
+
+//     // 2. Current Week Bounds (Monday to Sunday)
+//     const currentDayOfWeek = now.getDay(); // 0 is Sun, 1 is Mon...
+//     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+
+//     const monday = new Date(now);
+//     monday.setDate(now.getDate() + distanceToMon);
+
+//     const sunday = new Date(monday);
+//     sunday.setDate(monday.getDate() + 6);
+
+//     const startOfWeekStr = getFormattedDate(monday);
+//     const endOfWeekStr = getFormattedDate(sunday);
+
+//     // Filter by language if passed
+//     const whereClause = {};
+//     if (lang) {
+//       whereClause.language = lang;
+//     }
+
+//     // Fetch relevant users from database
+//     const users = await User.findAll({
+//       where: whereClause,
+//       attributes: [
+//         "id",
+//         "username",
+//         "language",
+//         "points",
+//         "completedPracticeDates",
+//       ],
+//       raw: true,
+//     });
+
+//     // Process and calculate monthly & weekly practice counts
+//     const processedUsers = users.map((user) => {
+//       let dates = user.completedPracticeDates || [];
+
+//       // Parse JSON string if stored as text in DB
+//       if (typeof dates === "string") {
+//         try {
+//           dates = JSON.parse(dates);
+//         } catch {
+//           dates = [];
+//         }
+//       }
+
+//       // Calculate monthly count (matching YYYY-MM prefix)
+//       const monthlyCount = dates.filter(
+//         (dateStr) =>
+//           typeof dateStr === "string" && dateStr.startsWith(currentMonthPrefix),
+//       ).length;
+
+//       // Calculate weekly count (date string within week range)
+//       const weeklyCount = dates.filter(
+//         (dateStr) =>
+//           typeof dateStr === "string" &&
+//           dateStr >= startOfWeekStr &&
+//           dateStr <= endOfWeekStr,
+//       ).length;
+
+//       return {
+//         id: user.id,
+//         username: user.username,
+//         language: user.language,
+//         points: user.points || 0,
+//         completedPracticeDates: dates,
+//         monthlyCount,
+//         weeklyCount,
+//       };
+//     });
+
+//     // 1. All-Time Leaderboard (Sorted by total points DESC)
+//     const allTime = [...processedUsers]
+//       .sort((a, b) => b.points - a.points)
+//       .slice(0, 4);
+
+//     // 2. Monthly Leaderboard (Sorted by monthlyCount DESC, then points DESC)
+//     const monthly = [...processedUsers]
+//       .sort((a, b) => b.monthlyCount - a.monthlyCount || b.points - a.points)
+//       .slice(0, 4);
+
+//     // 3. Weekly Leaderboard (Sorted by weeklyCount DESC, then points DESC)
+//     const weekly = [...processedUsers]
+//       .sort((a, b) => b.weeklyCount - a.weeklyCount || b.points - a.points)
+//       .slice(0, 4);
+
+//     return res.json({
+//       success: true,
+//       allTime,
+//       monthly,
+//       weekly,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// });
+
+function getFormattedDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 app.get("/api/leaderboard", async (req, res) => {
   try {
     const { lang } = req.query; // 'English' or 'Telugu'
@@ -5917,7 +6261,7 @@ app.get("/api/leaderboard", async (req, res) => {
     const currentMonthPrefix = `${year}-${month}`;
 
     // 2. Current Week Bounds (Monday to Sunday)
-    const currentDayOfWeek = now.getDay();
+    const currentDayOfWeek = now.getDay(); // 0 is Sun, 1 is Mon...
     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
 
     const monday = new Date(now);
@@ -5926,104 +6270,133 @@ app.get("/api/leaderboard", async (req, res) => {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
-    const startOfWeekStr = getFormattedDate(monday); // Expected YYYY-MM-DD
-    const endOfWeekStr = getFormattedDate(sunday); // Expected YYYY-MM-DD
+    const startOfWeekStr = getFormattedDate(monday);
+    const endOfWeekStr = getFormattedDate(sunday);
 
-    // 3. Build Base SQL Query
-    let baseWhereClause = "";
-    const params = [currentMonthPrefix, startOfWeekStr, endOfWeekStr];
-
+    // Language filter
+    const whereClause = {};
     if (lang) {
-      baseWhereClause = "WHERE language = ?";
-      params.push(lang);
+      whereClause.language = lang;
     }
 
-    const baseQuery = `
-      SELECT 
-        id AS _id,
-        username,
-        language,
-        points,
-        completedPracticeDates,
+    // Fetch all matching users
+    const users = await User.findAll({
+      where: whereClause,
+      attributes: [
+        "id",
+        "username",
+        "language",
+        "points",
+        "completedPracticeDates",
+      ],
+      raw: true,
+    });
 
-        -- Calculate count of completed dates in current month
-        (
-          SELECT COUNT(*)
-          FROM JSON_TABLE(
-            COALESCE(completedPracticeDates, '[]'),
-            '$[*]' COLUMNS (
-              dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
-            )
-          ) AS m_dates
-          WHERE m_dates.dateStr LIKE CONCAT(CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%')
-        ) AS monthlyCount,
+    // Compute monthlyCount and weeklyCount per user
+    const processedUsers = users.map((user) => {
+      let dates = user.completedPracticeDates || [];
 
-        -- Calculate count of completed dates in current week
-        (
-          SELECT COUNT(*)
-          FROM JSON_TABLE(
-            COALESCE(completedPracticeDates, '[]'),
-            '$[*]' COLUMNS (
-              dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
-            )
-          ) AS w_dates
-          WHERE w_dates.dateStr >= CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
-            AND w_dates.dateStr <= CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
-        ) AS weeklyCount
-      FROM register
-      ${baseWhereClause}
-    `;
-
-    // 4. Run queries in parallel
-    const [allTimeRows] = await db.execute(
-      `${baseQuery} ORDER BY points DESC LIMIT 4`,
-      params,
-    );
-
-    const [monthlyRows] = await db.execute(
-      `${baseQuery} ORDER BY monthlyCount DESC, points DESC LIMIT 4`,
-      params,
-    );
-
-    const [weeklyRows] = await db.execute(
-      `${baseQuery} ORDER BY weeklyCount DESC, points DESC LIMIT 4`,
-      params,
-    );
-
-    // Helper to format output structure safely
-    const formatUser = (user) => {
-      let dates = user.completedPracticeDates;
+      // Handle stringified JSON if column is stored as TEXT in DB
       if (typeof dates === "string") {
         try {
-          dates = JSON.parse(dates || "[]");
+          dates = JSON.parse(dates);
         } catch {
           dates = [];
         }
       }
+
+      const monthlyCount = dates.filter(
+        (dateStr) =>
+          typeof dateStr === "string" && dateStr.startsWith(currentMonthPrefix),
+      ).length;
+
+      const weeklyCount = dates.filter(
+        (dateStr) =>
+          typeof dateStr === "string" &&
+          dateStr >= startOfWeekStr &&
+          dateStr <= endOfWeekStr,
+      ).length;
+
       return {
-        _id: user._id,
-        username: user.username || "",
-        language: user.language || "",
+        id: user.id,
+        username: user.username,
+        language: user.language,
         points: user.points || 0,
-        completedPracticeDates: dates || [],
-        monthlyCount: Number(user.monthlyCount || 0),
-        weeklyCount: Number(user.weeklyCount || 0),
+        completedPracticeDates: dates,
+        monthlyCount,
+        weeklyCount,
       };
-    };
+    });
+
+    // Top 4 All-Time (Sorted by points DESC)
+    const allTime = [...processedUsers]
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 4);
+
+    // Top 4 Monthly (Sorted by monthlyCount DESC, then points DESC)
+    const monthly = [...processedUsers]
+      .sort((a, b) => b.monthlyCount - a.monthlyCount || b.points - a.points)
+      .slice(0, 4);
+
+    // Top 4 Weekly (Sorted by weeklyCount DESC, then points DESC)
+    const weekly = [...processedUsers]
+      .sort((a, b) => b.weeklyCount - a.weeklyCount || b.points - a.points)
+      .slice(0, 4);
 
     return res.json({
       success: true,
-      allTime: allTimeRows.map(formatUser),
-      monthly: monthlyRows.map(formatUser),
-      weekly: weeklyRows.map(formatUser),
+      allTime,
+      monthly,
+      weekly,
     });
   } catch (err) {
-    console.error("Error fetching leaderboard:", err);
-    return res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // GET: Admin fetch users with points & tracker details by language
+// app.get("/api/admin-users-tracker", async (req, res) => {
+//   try {
+//     const { language } = req.query;
+
+//     let formattedLang;
+//     if (language) {
+//       const lower = language.toLowerCase();
+//       if (lower === "te" || lower === "telugu") formattedLang = "Telugu";
+//       if (lower === "en" || lower === "english") formattedLang = "English";
+//     }
+
+//     const filter = {};
+//     if (formattedLang) {
+//       filter.language = formattedLang;
+//     }
+
+//     // Select fields required for admin list
+//     const users = await User.find(filter)
+//       .select("username name email points completedPracticeDates language role")
+//       .sort({ points: -1 }); // Rank by highest points
+
+//     const formattedData = users.map((u) => ({
+//       _id: u._id,
+//       name: u.name || u.username || "Student",
+//       email: u.email,
+//       points: u.points || 0,
+//       language: u.language,
+//       totalCompletedDays: u.completedPracticeDates
+//         ? u.completedPracticeDates.length
+//         : 0,
+//     }));
+
+//     return res.status(200).json({
+//       success: true,
+//       count: formattedData.length,
+//       data: formattedData,
+//     });
+//   } catch (err) {
+//     return res.status(500).json({ success: false, message: err.message });
+//   }
+// });
+
 app.get("/api/admin-users-tracker", async (req, res) => {
   try {
     const { language } = req.query;
@@ -6035,26 +6408,49 @@ app.get("/api/admin-users-tracker", async (req, res) => {
       if (lower === "en" || lower === "english") formattedLang = "English";
     }
 
-    const filter = {};
+    const whereClause = {};
     if (formattedLang) {
-      filter.language = formattedLang;
+      whereClause.language = formattedLang;
     }
 
-    // Select fields required for admin list
-    const users = await User.find(filter)
-      .select("username name email points completedPracticeDates language role")
-      .sort({ points: -1 }); // Rank by highest points
+    // Select required fields and order by highest points
+    const users = await User.findAll({
+      where: whereClause,
+      attributes: [
+        "id",
+        "username",
+        "name",
+        "email",
+        "points",
+        "completedPracticeDates",
+        "language",
+        "role",
+      ],
+      order: [["points", "DESC"]],
+      raw: true,
+    });
 
-    const formattedData = users.map((u) => ({
-      _id: u._id,
-      name: u.name || u.username || "Student",
-      email: u.email,
-      points: u.points || 0,
-      language: u.language,
-      totalCompletedDays: u.completedPracticeDates
-        ? u.completedPracticeDates.length
-        : 0,
-    }));
+    const formattedData = users.map((u) => {
+      let dates = u.completedPracticeDates || [];
+
+      // Handle stringified JSON if column is stored as TEXT/VARCHAR in DB
+      if (typeof dates === "string") {
+        try {
+          dates = JSON.parse(dates);
+        } catch {
+          dates = [];
+        }
+      }
+
+      return {
+        id: u.id,
+        name: u.name || u.username || "Student",
+        email: u.email,
+        points: u.points || 0,
+        language: u.language,
+        totalCompletedDays: Array.isArray(dates) ? dates.length : 0,
+      };
+    });
 
     return res.status(200).json({
       success: true,
@@ -6065,6 +6461,7 @@ app.get("/api/admin-users-tracker", async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
+
 
 // app.post("/api/admin-posts", async (req, res) => {
 //   try {
@@ -9958,65 +10355,194 @@ app.delete("/api/personal-details/:userId/profile-image", async (req, res) => {
   }
 });
 
+// app.get("/api/admin-profile", async (req, res) => {
+//   try {
+//     const query = `
+//       SELECT
+//         u.id AS _id,
+//         u.username,
+//         u.mobile,
+//         u.role,
+//         u.courseType,
+//         u.language,
+//         COALESCE(pd.profileImage, '') AS profileImage
+//       FROM register u
+//       LEFT JOIN personaldetails pd ON u.id = pd.userId
+//       WHERE LOWER(TRIM(u.role)) = 'admin'
+//       ORDER BY
+//         (pd.profileImage IS NOT NULL AND pd.profileImage != '') DESC,
+//         pd.created_at DESC
+//     `;
+
+//     const [rows] = await db.execute(query);
+
+//     if (!rows || rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "No admin found",
+//       });
+//     }
+
+//     const adminMap = new Map();
+
+//     for (const row of rows) {
+//       if (!adminMap.has(row._id)) {
+//         let parsedCourseType = row.courseType;
+//         if (typeof parsedCourseType === "string") {
+//           try {
+//             parsedCourseType = JSON.parse(parsedCourseType || "[]");
+//           } catch {
+//             parsedCourseType = [row.courseType];
+//           }
+//         }
+
+//         adminMap.set(row._id, {
+//           _id: row._id,
+//           username: row.username || "",
+//           mobile: row.mobile || "",
+//           role: row.role || "",
+//           courseType: parsedCourseType || [],
+//           language: row.language || "",
+//           profileImage: row.profileImage || "",
+//         });
+//       }
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       data: Array.from(adminMap.values()),
+//     });
+//   } catch (error) {
+//     console.error("Error fetching admin profile:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error fetching admin profile",
+//       error: error.message,
+//     });
+//   }
+// });
+
+// app.get("/api/admin-profile", async (req, res) => {
+//   try {
+//     const adminDetails = await User.findAll({
+//       where: { role: "admin" },
+//       attributes: [
+//         "id",
+//         "username",
+//         "mobile",
+//         "role",
+//         "courseType",
+//         "language",
+//       ],
+//       include: [
+//         {
+//           model: PersonalDetails,
+//           attributes: ["profileImage", "createdAt"],
+//           required: false, // LEFT OUTER JOIN
+//         },
+//       ],
+//       order: [
+//         // Sorts associated PersonalDetails: prioritizing non-empty profileImage, then latest createdAt
+//         [
+//           PersonalDetails,
+//           sequelize.literal(
+//             "CASE WHEN `PersonalDetails`.`profileImage` IS NOT NULL AND `PersonalDetails`.`profileImage` != '' THEN 1 ELSE 0 END",
+//           ),
+//           "DESC",
+//         ],
+//         [PersonalDetails, "createdAt", "DESC"],
+//       ],
+//     });
+
+//     if (!adminDetails || adminDetails.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "No admin found",
+//       });
+//     }
+
+//     // Format output structure to match original response shape
+//     const formattedAdmins = adminDetails.map((admin) => {
+//       const adminPlain = admin.get({ plain: true });
+
+//       // Get profileImage from the top ordered PersonalDetails record
+//       const topProfile = adminPlain.PersonalDetails?.[0];
+//       const profileImage = topProfile?.profileImage || "";
+
+//       // Remove nested PersonalDetails array to match $project shape
+//       delete adminPlain.PersonalDetails;
+
+//       return {
+//         ...adminPlain,
+//         profileImage,
+//       };
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       data: formattedAdmins,
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error fetching admin profile",
+//       error: error.message,
+//     });
+//   }
+// });
+
 app.get("/api/admin-profile", async (req, res) => {
   try {
-    const query = `
-      SELECT 
-        u.id AS _id,
-        u.username,
-        u.mobile,
-        u.role,
-        u.courseType,
-        u.language,
-        COALESCE(pd.profileImage, '') AS profileImage
-      FROM register u
-      LEFT JOIN personaldetails pd ON u.id = pd.userId
-      WHERE LOWER(TRIM(u.role)) = 'admin'
-      ORDER BY 
-        (pd.profileImage IS NOT NULL AND pd.profileImage != '') DESC,
-        pd.created_at DESC
-    `;
+    const adminDetails = await User.findAll({
+      where: { role: "admin" },
+      attributes: [
+        "id",
+        "username",
+        "mobile",
+        "role",
+        "courseType",
+        "language",
+      ],
+      include: [
+        {
+          model: PersonalDetails,
+          attributes: ["profileImage", "createdAt"],
+          required: false,
+        },
+      ],
+      order: [[PersonalDetails, "createdAt", "DESC"]],
+    });
 
-    const [rows] = await db.execute(query);
-
-    if (!rows || rows.length === 0) {
+    if (!adminDetails || adminDetails.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No admin found",
       });
     }
 
-    const adminMap = new Map();
+    const formattedAdmins = adminDetails.map((admin) => {
+      const adminPlain = admin.get({ plain: true });
+      const detailsList = adminPlain.PersonalDetails || [];
 
-    for (const row of rows) {
-      if (!adminMap.has(row._id)) {
-        let parsedCourseType = row.courseType;
-        if (typeof parsedCourseType === "string") {
-          try {
-            parsedCourseType = JSON.parse(parsedCourseType || "[]");
-          } catch {
-            parsedCourseType = [row.courseType];
-          }
-        }
+      // Find the first record with a non-empty profileImage, or fall back to the newest record
+      const imageRecord =
+        detailsList.find(
+          (d) => d.profileImage && d.profileImage.trim() !== "",
+        ) || detailsList[0];
 
-        adminMap.set(row._id, {
-          _id: row._id,
-          username: row.username || "",
-          mobile: row.mobile || "",
-          role: row.role || "",
-          courseType: parsedCourseType || [],
-          language: row.language || "",
-          profileImage: row.profileImage || "",
-        });
-      }
-    }
+      delete adminPlain.PersonalDetails;
+
+      return {
+        ...adminPlain,
+        profileImage: imageRecord?.profileImage || "",
+      };
+    });
 
     return res.status(200).json({
       success: true,
-      data: Array.from(adminMap.values()),
+      data: formattedAdmins,
     });
   } catch (error) {
-    console.error("Error fetching admin profile:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching admin profile",
@@ -10109,6 +10635,104 @@ app.post("/api/upload_parallel", upload.single("file"), async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+});
+
+// GET /api/events
+app.get("/api/events", async (req, res) => {
+  try {
+    const rawLanguage = req.query.language;
+    const language = rawLanguage;
+
+    const events = await Event.findAll({
+      where: { language },
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.status(200).json({ success: true, data: events });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/events
+app.post("/api/events", upload.single("image"), async (req, res) => {
+  try {
+    const { title, language } = req.body;
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please upload an image" });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+    const newEvent = await Event.create({
+      title,
+      language: formatLanguage(language),
+      imageUrl,
+    });
+
+    res.status(201).json({ success: true, data: newEvent });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/events/:id
+app.put("/api/events/:id", upload.single("image"), async (req, res) => {
+  try {
+    const { title, language } = req.body;
+    const event = await Event.findByPk(req.params.id);
+
+    if (!event) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found" });
+    }
+
+    let imageUrl = event.imageUrl;
+
+    // If a new file is uploaded, remove the old file and assign new path
+    if (req.file) {
+      removeFileFromUploads(event.imageUrl);
+      imageUrl = `/uploads/${req.file.filename}`;
+    }
+
+    event.title = title || event.title;
+    if (language) {
+      event.language = formatLanguage(language);
+    }
+    event.imageUrl = imageUrl;
+
+    await event.save();
+    res.status(200).json({ success: true, data: event });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/events/:id
+app.delete("/api/events/:id", async (req, res) => {
+  try {
+    const event = await Event.findByPk(req.params.id);
+    if (!event) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found" });
+    }
+
+    // 1. Delete image file from disk
+    removeFileFromUploads(event.imageUrl);
+
+    // 2. Delete record from database
+    await event.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: "Event and associated image deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
