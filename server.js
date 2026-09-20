@@ -118,6 +118,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 import upload from "./middleware/upload.js";
+import uploadS3 from "./middleware/uploadS3.js";
 import { Upload } from "@aws-sdk/lib-storage";
 import multer from "multer";
 // Ensure 'uploads' directory exists
@@ -9914,7 +9915,7 @@ app.post("/api/media/upload-url", async (req, res) => {
   }
 });
 
-app.post("/api/upload_parallel", upload.single("file"), async (req, res) => {
+app.post("/api/upload_parallel", uploadS3.single("file"), async (req, res) => {
   const file = req.file;
 
   if (!file) {
