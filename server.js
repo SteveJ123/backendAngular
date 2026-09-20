@@ -117,14 +117,14 @@ import {
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+import upload from "./middleware/upload.js";
 import { Upload } from "@aws-sdk/lib-storage";
 import multer from "multer";
 // Ensure 'uploads' directory exists
 // if (!fs.existsSync("./uploads")) {
 //   fs.mkdirSync("./uploads");
 // }
-const upload = multer();
+// const upload = multer();
 
 // const app = express();
 
@@ -169,7 +169,7 @@ app.use(
 // 3. Handle Preflight OPTIONS Requests explicitly
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Connect to MongoDB Atlas
 // connectDB();
@@ -10540,6 +10540,30 @@ app.post("/api/upload_parallel", upload.single("file"), async (req, res) => {
   }
 });
 
+/**
+ * Deletes file from the root 'uploads' directory
+ */
+const removeFileFromUploads = (imageUrl) => {
+  if (!imageUrl) return;
+
+  // 1. Extract just the filename (e.g., '1710000000-image.jpg')
+  const filename = path.basename(imageUrl);
+
+  // 2. Resolve path starting directly from project root
+  const absolutePath = path.join(process.cwd(), "uploads", filename);
+
+  console.log("Attempting to delete file at:", absolutePath);
+
+  // 3. Delete file asynchronously
+  fs.unlink(absolutePath, (err) => {
+    if (err) {
+      console.error("File deletion failed:", err.message);
+    } else {
+      console.log("File successfully deleted from disk!");
+    }
+  });
+};
+
 // GET /api/events
 app.get("/api/events", async (req, res) => {
   try {
@@ -10570,7 +10594,7 @@ app.post("/api/events", upload.single("image"), async (req, res) => {
     const imageUrl = `/uploads/${req.file.filename}`;
     const newEvent = await Event.create({
       title,
-      language: formatLanguage(language),
+      language,
       imageUrl,
     });
 
@@ -10602,7 +10626,7 @@ app.put("/api/events/:id", upload.single("image"), async (req, res) => {
 
     event.title = title || event.title;
     if (language) {
-      event.language = formatLanguage(language);
+      event.language = language;
     }
     event.imageUrl = imageUrl;
 

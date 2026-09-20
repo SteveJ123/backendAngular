@@ -146,7 +146,7 @@ Lecture.belongsTo(Course, { foreignKey: "courseId" });
 // ==========================================
 const syncDatabase = async () => {
   try {
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
     console.log("Database & tables synchronized successfully.");
   } catch (error) {
     console.error("Error synchronizing database:", error);
