@@ -5372,52 +5372,161 @@ app.delete("/api/products/:id", async (req, res) => {
 });
 
 // GET user tracker data
-app.get("/api/tracker-status/:userId", async (req, res) => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${year}-${month}-${day}`;
-  try {
-    const user = await User.findById(req.params.userId);
+// app.get("/api/tracker-status/:userId", async (req, res) => {
+//   const now = new Date();
+//   const year = now.getFullYear();
+//   const month = String(now.getMonth() + 1).padStart(2, "0");
+//   const day = String(now.getDate()).padStart(2, "0");
+//   const todayStr = `${year}-${month}-${day}`;
+//   try {
+//     const user = await User.findById(req.params.userId);
 
-    if (user.completedPracticeDates.includes(todayStr)) {
-      return res.json({
-        success: true,
-        completedPracticeDates: user.completedPracticeDates,
-        message: "Daily practice already completed for today.",
-      });
-    } else {
-      res.json({
-        success: true,
-        points: user.points,
-        completedPracticeDates: user.completedPracticeDates,
-      });
+//     if (user.completedPracticeDates.includes(todayStr)) {
+//       return res.json({
+//         success: true,
+//         completedPracticeDates: user.completedPracticeDates,
+//         message: "Daily practice already completed for today.",
+//       });
+//     } else {
+//       res.json({
+//         success: true,
+//         points: user.points,
+//         completedPracticeDates: user.completedPracticeDates,
+//       });
+//     }
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+// // POST complete today's tracker (Adds +10 points)
+// app.post("/api/complete-today", async (req, res) => {
+//   const { userId } = req.body;
+
+//   const now = new Date();
+
+//   // Extract YYYY, MM, DD relative to Asia/Kolkata
+//   const parts = new Intl.DateTimeFormat("en-US", {
+//     timeZone: "Asia/Kolkata",
+//     year: "numeric",
+//     month: "2-digit",
+//     day: "2-digit",
+//   }).formatToParts(now);
+
+//   const year = parts.find((p) => p.type === "year").value;
+//   const month = parts.find((p) => p.type === "month").value;
+//   const day = parts.find((p) => p.type === "day").value;
+
+//   const todayStr = `${year}-${month}-${day}`;
+
+//   try {
+//     const user = await User.findByPk(userId);
+
+//     if (!user) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "User not found." });
+//     }
+
+//     // Parse array if stored as stringified JSON in DB column
+//     let completedPracticeDates = user.completedPracticeDates || [];
+//     if (typeof completedPracticeDates === "string") {
+//       try {
+//         completedPracticeDates = JSON.parse(completedPracticeDates);
+//       } catch {
+//         completedPracticeDates = [];
+//       }
+//     }
+
+//     // Guard: Prevent double-claiming today
+//     console.log("todayStr", todayStr);
+//     if (completedPracticeDates.includes(todayStr)) {
+//       return res.json({
+//         success: true,
+//         message: "Daily practice already completed for today.",
+//       });
+//     }
+
+//     // Append today's date and increment points by 10
+//     const updatedDates = [...completedPracticeDates, todayStr];
+//     const newPoints = (user.points || 0) + 10;
+
+//     // Direct update to trigger proper change tracking on JSON columns/arrays
+//     await user.update({
+//       completedPracticeDates: updatedDates,
+//       points: newPoints,
+//     });
+
+//     return res.json({
+//       success: true,
+//       points: user.points,
+//       completedPracticeDates: user.completedPracticeDates,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+// Shared utility: Formats YYYY-MM-DD specifically for Asia/Kolkata timezone
+const getTodayStr = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = parts.find((p) => p.type === "year").value;
+  const month = parts.find((p) => p.type === "month").value;
+  const day = parts.find((p) => p.type === "day").value;
+
+  return `${year}-${month}-${day}`;
+};
+
+// GET user tracker data
+app.get("/api/tracker-status/:userId", async (req, res) => {
+  const todayStr = getTodayStr();
+
+  try {
+    // Replaced Mongoose findById with Sequelize findByPk
+    const user = await User.findByPk(req.params.userId);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
     }
+
+    // Safely parse JSON array column if stored as string
+    let completedPracticeDates = user.completedPracticeDates || [];
+    if (typeof completedPracticeDates === "string") {
+      try {
+        completedPracticeDates = JSON.parse(completedPracticeDates);
+      } catch {
+        completedPracticeDates = [];
+      }
+    }
+
+    const isCompletedToday = completedPracticeDates.includes(todayStr);
+
+    return res.status(200).json({
+      success: true,
+      points: user.points,
+      completedPracticeDates,
+      isCompletedToday,
+      message: isCompletedToday
+        ? "Daily practice already completed for today."
+        : "Daily practice pending.",
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // POST complete today's tracker (Adds +10 points)
 app.post("/api/complete-today", async (req, res) => {
   const { userId } = req.body;
-
-  const now = new Date();
-
-  // Extract YYYY, MM, DD relative to Asia/Kolkata
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-
-  const year = parts.find((p) => p.type === "year").value;
-  const month = parts.find((p) => p.type === "month").value;
-  const day = parts.find((p) => p.type === "day").value;
-
-  const todayStr = `${year}-${month}-${day}`;
+  const todayStr = getTodayStr();
 
   try {
     const user = await User.findByPk(userId);
@@ -5428,7 +5537,7 @@ app.post("/api/complete-today", async (req, res) => {
         .json({ success: false, message: "User not found." });
     }
 
-    // Parse array if stored as stringified JSON in DB column
+    // Safely parse JSON array column if stored as string
     let completedPracticeDates = user.completedPracticeDates || [];
     if (typeof completedPracticeDates === "string") {
       try {
@@ -5439,10 +5548,11 @@ app.post("/api/complete-today", async (req, res) => {
     }
 
     // Guard: Prevent double-claiming today
-    console.log("todayStr", todayStr);
     if (completedPracticeDates.includes(todayStr)) {
-      return res.json({
+      return res.status(200).json({
         success: true,
+        points: user.points,
+        completedPracticeDates,
         message: "Daily practice already completed for today.",
       });
     }
@@ -5451,700 +5561,22 @@ app.post("/api/complete-today", async (req, res) => {
     const updatedDates = [...completedPracticeDates, todayStr];
     const newPoints = (user.points || 0) + 10;
 
-    // Direct update to trigger proper change tracking on JSON columns/arrays
+    // Direct update triggers proper Sequelize JSON mutation tracking
     await user.update({
       completedPracticeDates: updatedDates,
       points: newPoints,
     });
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       points: user.points,
       completedPracticeDates: user.completedPracticeDates,
+      message: "Tracker marked completed and points added successfully.",
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
-
-// // Helper to get date strings in YYYY-MM-DD
-// function getFormattedDate(date) {
-//   const y = date.getFullYear();
-//   const m = String(date.getMonth() + 1).padStart(2, "0");
-//   const d = String(date.getDate()).padStart(2, "0");
-//   return `${y}-${m}-${d}`;
-// }
-
-// app.get("/api/leaderboard", async (req, res) => {
-//   try {
-//     const { lang } = req.query; // 'English' or 'Telugu'
-//     const now = new Date();
-
-//     // 1. Current Month Prefix (YYYY-MM)
-//     const year = now.getFullYear();
-//     const month = String(now.getMonth() + 1).padStart(2, "0");
-//     const currentMonthPrefix = `${year}-${month}`;
-
-//     // 2. Current Week Bounds (Monday to Sunday)
-//     const currentDayOfWeek = now.getDay(); // 0 is Sun, 1 is Mon...
-//     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-
-//     const monday = new Date(now);
-//     monday.setDate(now.getDate() + distanceToMon);
-
-//     const sunday = new Date(monday);
-//     sunday.setDate(monday.getDate() + 6);
-
-//     const startOfWeekStr = getFormattedDate(monday);
-//     const endOfWeekStr = getFormattedDate(sunday);
-
-//     // Base Filter for Language
-//     const matchStage = lang ? { language: lang } : {};
-
-//     const leaderboardData = await User.aggregate([
-//       { $match: matchStage },
-//       {
-//         $project: {
-//           username: 1,
-//           language: 1,
-//           points: 1,
-//           completedPracticeDates: 1,
-
-//           // Count entries in current month
-//           monthlyCount: {
-//             $size: {
-//               $filter: {
-//                 input: { $ifNull: ["$completedPracticeDates", []] },
-//                 as: "dateStr",
-//                 cond: {
-//                   $eq: [
-//                     { $substrBytes: ["$$dateStr", 0, 7] },
-//                     currentMonthPrefix,
-//                   ],
-//                 },
-//               },
-//             },
-//           },
-
-//           // Count entries in current week
-//           weeklyCount: {
-//             $size: {
-//               $filter: {
-//                 input: { $ifNull: ["$completedPracticeDates", []] },
-//                 as: "dateStr",
-//                 cond: {
-//                   $and: [
-//                     { $gte: ["$$dateStr", startOfWeekStr] },
-//                     { $lte: ["$$dateStr", endOfWeekStr] },
-//                   ],
-//                 },
-//               },
-//             },
-//           },
-//         },
-//       },
-//       {
-//         $facet: {
-//           // Top 4 All-Time (Sorted by total points)
-//           allTime: [{ $sort: { points: -1 } }, { $limit: 4 }],
-
-//           // Top 4 Monthly (Sorted by current month completed days, then total points)
-//           monthly: [{ $sort: { monthlyCount: -1, points: -1 } }, { $limit: 4 }],
-
-//           // Top 4 Weekly (Sorted by current week completed days, then total points)
-//           weekly: [{ $sort: { weeklyCount: -1, points: -1 } }, { $limit: 4 }],
-//         },
-//       },
-//     ]);
-
-//     const result = leaderboardData[0];
-
-//     return res.json({
-//       success: true,
-//       allTime: result.allTime || [],
-//       monthly: result.monthly || [],
-//       weekly: result.weekly || [],
-//     });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// });
-
-// app.get("/api/leaderboard", async (req, res) => {
-//   try {
-//     const { lang } = req.query; // 'English' or 'Telugu'
-//     const now = new Date();
-
-//     // 1. Current Month Prefix (YYYY-MM)
-//     const year = now.getFullYear();
-//     const month = String(now.getMonth() + 1).padStart(2, "0");
-//     const currentMonthPrefix = `${year}-${month}`;
-
-//     // 2. Current Week Bounds (Monday to Sunday)
-//     const currentDayOfWeek = now.getDay();
-//     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-
-//     const monday = new Date(now);
-//     monday.setDate(now.getDate() + distanceToMon);
-
-//     const sunday = new Date(monday);
-//     sunday.setDate(monday.getDate() + 6);
-
-//     const startOfWeekStr = getFormattedDate(monday); // Expected YYYY-MM-DD
-//     const endOfWeekStr = getFormattedDate(sunday); // Expected YYYY-MM-DD
-
-//     // 3. Build Base SQL Query with JSON date filtering logic
-//     let baseWhereClause = "";
-//     const params = [currentMonthPrefix, startOfWeekStr, endOfWeekStr];
-
-//     if (lang) {
-//       baseWhereClause = "WHERE language = ?";
-//       params.push(lang);
-//     }
-
-//     const baseQuery = `
-//       SELECT
-//         id AS _id,
-//         username,
-//         language,
-//         points,
-//         completedPracticeDates,
-
-//         -- Calculate count of completed dates in current month
-//         (
-//           SELECT COUNT(*)
-//           FROM JSON_TABLE(
-//             COALESCE(completedPracticeDates, '[]'),
-//             '$[*]' COLUMNS (dateStr VARCHAR(50) PATH '$')
-//           ) AS m_dates
-//           WHERE m_dates.dateStr LIKE CONCAT(?, '%')
-//         ) AS monthlyCount,
-
-//         -- Calculate count of completed dates in current week
-//         (
-//           SELECT COUNT(*)
-//           FROM JSON_TABLE(
-//             COALESCE(completedPracticeDates, '[]'),
-//             '$[*]' COLUMNS (dateStr VARCHAR(50) PATH '$')
-//           ) AS w_dates
-//           WHERE w_dates.dateStr >= ? AND w_dates.dateStr <= ?
-//         ) AS weeklyCount
-//       FROM register
-//       ${baseWhereClause}
-//     `;
-
-//     // 4. Run queries for allTime, monthly, and weekly categories parallelly
-//     const [allTimeRows] = await db.execute(
-//       `${baseQuery} ORDER BY points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     const [monthlyRows] = await db.execute(
-//       `${baseQuery} ORDER BY monthlyCount DESC, points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     const [weeklyRows] = await db.execute(
-//       `${baseQuery} ORDER BY weeklyCount DESC, points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     // Helper to safely format output records
-//     const formatUser = (user) => {
-//       let dates = user.completedPracticeDates;
-//       if (typeof dates === "string") {
-//         try {
-//           dates = JSON.parse(dates || "[]");
-//         } catch {
-//           dates = [];
-//         }
-//       }
-//       return {
-//         _id: user._id,
-//         username: user.username || "",
-//         language: user.language || "",
-//         points: user.points || 0,
-//         completedPracticeDates: dates || [],
-//         monthlyCount: Number(user.monthlyCount || 0),
-//         weeklyCount: Number(user.weeklyCount || 0),
-//       };
-//     };
-
-//     return res.json({
-//       success: true,
-//       allTime: allTimeRows.map(formatUser),
-//       monthly: monthlyRows.map(formatUser),
-//       weekly: weeklyRows.map(formatUser),
-//     });
-//   } catch (err) {
-//     console.error("Error fetching leaderboard:", err);
-//     return res.status(500).json({ success: false, message: err.message });
-//   }
-// });
-
-// app.get("/api/leaderboard", async (req, res) => {
-//   try {
-//     const { lang } = req.query; // 'English' or 'Telugu'
-//     const now = new Date();
-
-//     // 1. Current Month Prefix (YYYY-MM)
-//     const year = now.getFullYear();
-//     const month = String(now.getMonth() + 1).padStart(2, "0");
-//     const currentMonthPrefix = `${year}-${month}`;
-
-//     // 2. Current Week Bounds (Monday to Sunday)
-//     const currentDayOfWeek = now.getDay();
-//     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-
-//     const monday = new Date(now);
-//     monday.setDate(now.getDate() + distanceToMon);
-
-//     const sunday = new Date(monday);
-//     sunday.setDate(monday.getDate() + 6);
-
-//     const startOfWeekStr = getFormattedDate(monday); // Expected YYYY-MM-DD
-//     const endOfWeekStr = getFormattedDate(sunday); // Expected YYYY-MM-DD
-
-//     // 3. Build Base SQL Query with Explicit Collation
-//     let baseWhereClause = "";
-//     const params = [currentMonthPrefix, startOfWeekStr, endOfWeekStr];
-
-//     if (lang) {
-//       baseWhereClause = "WHERE language = ?";
-//       params.push(lang);
-//     }
-
-//     const baseQuery = `
-//       SELECT
-//         id AS _id,
-//         username,
-//         language,
-//         points,
-//         completedPracticeDates,
-
-//         -- Calculate count of completed dates in current month
-//         (
-//           SELECT COUNT(*)
-//           FROM JSON_TABLE(
-//             COALESCE(completedPracticeDates, '[]'),
-//             '$[*]' COLUMNS (
-//               dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
-//             )
-//           ) AS m_dates
-//           WHERE m_dates.dateStr LIKE CONCAT(?, '%')
-//         ) AS monthlyCount,
-
-//         -- Calculate count of completed dates in current week
-//         (
-//           SELECT COUNT(*)
-//           FROM JSON_TABLE(
-//             COALESCE(completedPracticeDates, '[]'),
-//             '$[*]' COLUMNS (
-//               dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
-//             )
-//           ) AS w_dates
-//           WHERE w_dates.dateStr >= ? AND w_dates.dateStr <= ?
-//         ) AS weeklyCount
-//       FROM register
-//       ${baseWhereClause}
-//     `;
-
-//     // 4. Run queries parallelly
-//     const [allTimeRows] = await db.execute(
-//       `${baseQuery} ORDER BY points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     const [monthlyRows] = await db.execute(
-//       `${baseQuery} ORDER BY monthlyCount DESC, points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     const [weeklyRows] = await db.execute(
-//       `${baseQuery} ORDER BY weeklyCount DESC, points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     // Format output structure
-//     const formatUser = (user) => {
-//       let dates = user.completedPracticeDates;
-//       if (typeof dates === "string") {
-//         try {
-//           dates = JSON.parse(dates || "[]");
-//         } catch {
-//           dates = [];
-//         }
-//       }
-//       return {
-//         _id: user._id,
-//         username: user.username || "",
-//         language: user.language || "",
-//         points: user.points || 0,
-//         completedPracticeDates: dates || [],
-//         monthlyCount: Number(user.monthlyCount || 0),
-//         weeklyCount: Number(user.weeklyCount || 0),
-//       };
-//     };
-
-//     return res.json({
-//       success: true,
-//       allTime: allTimeRows.map(formatUser),
-//       monthly: monthlyRows.map(formatUser),
-//       weekly: weeklyRows.map(formatUser),
-//     });
-//   } catch (err) {
-//     console.error("Error fetching leaderboard:", err);
-//     return res.status(500).json({ success: false, message: err.message });
-//   }
-// });
-
-// app.get("/api/leaderboard", async (req, res) => {
-//   try {
-//     const { lang } = req.query; // 'English' or 'Telugu'
-//     const now = new Date();
-
-//     // 1. Current Month Prefix (YYYY-MM)
-//     const year = now.getFullYear();
-//     const month = String(now.getMonth() + 1).padStart(2, "0");
-//     const currentMonthPrefix = `${year}-${month}`;
-
-//     // 2. Current Week Bounds (Monday to Sunday)
-//     const currentDayOfWeek = now.getDay();
-//     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-
-//     const monday = new Date(now);
-//     monday.setDate(now.getDate() + distanceToMon);
-
-//     const sunday = new Date(monday);
-//     sunday.setDate(monday.getDate() + 6);
-
-//     const startOfWeekStr = getFormattedDate(monday); // Expected YYYY-MM-DD
-//     const endOfWeekStr = getFormattedDate(sunday); // Expected YYYY-MM-DD
-
-//     // 3. Build Base SQL Query with explicit collation on parameter inputs
-//     let baseWhereClause = "";
-//     const params = [currentMonthPrefix, startOfWeekStr, endOfWeekStr];
-
-//     if (lang) {
-//       baseWhereClause = "WHERE language = ?";
-//       params.push(lang);
-//     }
-
-//     const baseQuery = `
-//       SELECT
-//         id AS _id,
-//         username,
-//         language,
-//         points,
-//         completedPracticeDates,
-
-//         -- Calculate count of completed dates in current month
-//         (
-//           SELECT COUNT(*)
-//           FROM JSON_TABLE(
-//             COALESCE(completedPracticeDates, '[]'),
-//             '$[*]' COLUMNS (
-//               dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
-//             )
-//           ) AS m_dates
-//           WHERE m_dates.dateStr LIKE CONCAT(CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%')
-//         ) AS monthlyCount,
-
-//         -- Calculate count of completed dates in current week
-//         (
-//           SELECT COUNT(*)
-//           FROM JSON_TABLE(
-//             COALESCE(completedPracticeDates, '[]'),
-//             '$[*]' COLUMNS (
-//               dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
-//             )
-//           ) AS w_dates
-//           WHERE m_dates.dateStr >= CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
-//             AND m_dates.dateStr <= CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
-//         ) AS weeklyCount
-//       FROM register
-//       ${baseWhereClause}
-//     `;
-
-//     // 4. Run queries parallelly
-//     const [allTimeRows] = await db.execute(
-//       `${baseQuery} ORDER BY points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     const [monthlyRows] = await db.execute(
-//       `${baseQuery} ORDER BY monthlyCount DESC, points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     const [weeklyRows] = await db.execute(
-//       `${baseQuery} ORDER BY weeklyCount DESC, points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     // Format output structure
-//     const formatUser = (user) => {
-//       let dates = user.completedPracticeDates;
-//       if (typeof dates === "string") {
-//         try {
-//           dates = JSON.parse(dates || "[]");
-//         } catch {
-//           dates = [];
-//         }
-//       }
-//       return {
-//         _id: user._id,
-//         username: user.username || "",
-//         language: user.language || "",
-//         points: user.points || 0,
-//         completedPracticeDates: dates || [],
-//         monthlyCount: Number(user.monthlyCount || 0),
-//         weeklyCount: Number(user.weeklyCount || 0),
-//       };
-//     };
-
-//     return res.json({
-//       success: true,
-//       allTime: allTimeRows.map(formatUser),
-//       monthly: monthlyRows.map(formatUser),
-//       weekly: weeklyRows.map(formatUser),
-//     });
-//   } catch (err) {
-//     console.error("Error fetching leaderboard:", err);
-//     return res.status(500).json({ success: false, message: err.message });
-//   }
-// });
-
-// app.get("/api/leaderboard", async (req, res) => {
-//   try {
-//     const { lang } = req.query; // 'English' or 'Telugu'
-//     const now = new Date();
-
-//     // 1. Current Month Prefix (YYYY-MM)
-//     const year = now.getFullYear();
-//     const month = String(now.getMonth() + 1).padStart(2, "0");
-//     const currentMonthPrefix = `${year}-${month}`;
-
-//     // 2. Current Week Bounds (Monday to Sunday)
-//     const currentDayOfWeek = now.getDay();
-//     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-
-//     const monday = new Date(now);
-//     monday.setDate(now.getDate() + distanceToMon);
-
-//     const sunday = new Date(monday);
-//     sunday.setDate(monday.getDate() + 6);
-
-//     const startOfWeekStr = getFormattedDate(monday); // Expected YYYY-MM-DD
-//     const endOfWeekStr = getFormattedDate(sunday); // Expected YYYY-MM-DD
-
-//     // 3. Build Base SQL Query
-//     let baseWhereClause = "";
-//     const params = [currentMonthPrefix, startOfWeekStr, endOfWeekStr];
-
-//     if (lang) {
-//       baseWhereClause = "WHERE language = ?";
-//       params.push(lang);
-//     }
-
-//     const baseQuery = `
-//       SELECT
-//         id AS _id,
-//         username,
-//         language,
-//         points,
-//         completedPracticeDates,
-
-//         -- Calculate count of completed dates in current month
-//         (
-//           SELECT COUNT(*)
-//           FROM JSON_TABLE(
-//             COALESCE(completedPracticeDates, '[]'),
-//             '$[*]' COLUMNS (
-//               dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
-//             )
-//           ) AS m_dates
-//           WHERE m_dates.dateStr LIKE CONCAT(CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%')
-//         ) AS monthlyCount,
-
-//         -- Calculate count of completed dates in current week
-//         (
-//           SELECT COUNT(*)
-//           FROM JSON_TABLE(
-//             COALESCE(completedPracticeDates, '[]'),
-//             '$[*]' COLUMNS (
-//               dateStr VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
-//             )
-//           ) AS w_dates
-//           WHERE w_dates.dateStr >= CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
-//             AND w_dates.dateStr <= CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
-//         ) AS weeklyCount
-//       FROM register
-//       ${baseWhereClause}
-//     `;
-
-//     // 4. Run queries in parallel
-//     const [allTimeRows] = await db.execute(
-//       `${baseQuery} ORDER BY points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     const [monthlyRows] = await db.execute(
-//       `${baseQuery} ORDER BY monthlyCount DESC, points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     const [weeklyRows] = await db.execute(
-//       `${baseQuery} ORDER BY weeklyCount DESC, points DESC LIMIT 4`,
-//       params,
-//     );
-
-//     // Helper to format output structure safely
-//     const formatUser = (user) => {
-//       let dates = user.completedPracticeDates;
-//       if (typeof dates === "string") {
-//         try {
-//           dates = JSON.parse(dates || "[]");
-//         } catch {
-//           dates = [];
-//         }
-//       }
-//       return {
-//         _id: user._id,
-//         username: user.username || "",
-//         language: user.language || "",
-//         points: user.points || 0,
-//         completedPracticeDates: dates || [],
-//         monthlyCount: Number(user.monthlyCount || 0),
-//         weeklyCount: Number(user.weeklyCount || 0),
-//       };
-//     };
-
-//     return res.json({
-//       success: true,
-//       allTime: allTimeRows.map(formatUser),
-//       monthly: monthlyRows.map(formatUser),
-//       weekly: weeklyRows.map(formatUser),
-//     });
-//   } catch (err) {
-//     console.error("Error fetching leaderboard:", err);
-//     return res.status(500).json({ success: false, message: err.message });
-//   }
-// });
-
-// Helper function to format Date object into YYYY-MM-DD
-// function getFormattedDate(date) {
-//   const y = date.getFullYear();
-//   const m = String(date.getMonth() + 1).padStart(2, "0");
-//   const d = String(date.getDate()).padStart(2, "0");
-//   return `${y}-${m}-${d}`;
-// }
-
-// app.get("/api/leaderboard", async (req, res) => {
-//   try {
-//     const { lang } = req.query; // 'English' or 'Telugu'
-//     const now = new Date();
-
-//     // 1. Current Month Prefix (YYYY-MM)
-//     const year = now.getFullYear();
-//     const month = String(now.getMonth() + 1).padStart(2, "0");
-//     const currentMonthPrefix = `${year}-${month}`;
-
-//     // 2. Current Week Bounds (Monday to Sunday)
-//     const currentDayOfWeek = now.getDay(); // 0 is Sun, 1 is Mon...
-//     const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-
-//     const monday = new Date(now);
-//     monday.setDate(now.getDate() + distanceToMon);
-
-//     const sunday = new Date(monday);
-//     sunday.setDate(monday.getDate() + 6);
-
-//     const startOfWeekStr = getFormattedDate(monday);
-//     const endOfWeekStr = getFormattedDate(sunday);
-
-//     // Filter by language if passed
-//     const whereClause = {};
-//     if (lang) {
-//       whereClause.language = lang;
-//     }
-
-//     // Fetch relevant users from database
-//     const users = await User.findAll({
-//       where: whereClause,
-//       attributes: [
-//         "id",
-//         "username",
-//         "language",
-//         "points",
-//         "completedPracticeDates",
-//       ],
-//       raw: true,
-//     });
-
-//     // Process and calculate monthly & weekly practice counts
-//     const processedUsers = users.map((user) => {
-//       let dates = user.completedPracticeDates || [];
-
-//       // Parse JSON string if stored as text in DB
-//       if (typeof dates === "string") {
-//         try {
-//           dates = JSON.parse(dates);
-//         } catch {
-//           dates = [];
-//         }
-//       }
-
-//       // Calculate monthly count (matching YYYY-MM prefix)
-//       const monthlyCount = dates.filter(
-//         (dateStr) =>
-//           typeof dateStr === "string" && dateStr.startsWith(currentMonthPrefix),
-//       ).length;
-
-//       // Calculate weekly count (date string within week range)
-//       const weeklyCount = dates.filter(
-//         (dateStr) =>
-//           typeof dateStr === "string" &&
-//           dateStr >= startOfWeekStr &&
-//           dateStr <= endOfWeekStr,
-//       ).length;
-
-//       return {
-//         id: user.id,
-//         username: user.username,
-//         language: user.language,
-//         points: user.points || 0,
-//         completedPracticeDates: dates,
-//         monthlyCount,
-//         weeklyCount,
-//       };
-//     });
-
-//     // 1. All-Time Leaderboard (Sorted by total points DESC)
-//     const allTime = [...processedUsers]
-//       .sort((a, b) => b.points - a.points)
-//       .slice(0, 4);
-
-//     // 2. Monthly Leaderboard (Sorted by monthlyCount DESC, then points DESC)
-//     const monthly = [...processedUsers]
-//       .sort((a, b) => b.monthlyCount - a.monthlyCount || b.points - a.points)
-//       .slice(0, 4);
-
-//     // 3. Weekly Leaderboard (Sorted by weeklyCount DESC, then points DESC)
-//     const weekly = [...processedUsers]
-//       .sort((a, b) => b.weeklyCount - a.weeklyCount || b.points - a.points)
-//       .slice(0, 4);
-
-//     return res.json({
-//       success: true,
-//       allTime,
-//       monthly,
-//       weekly,
-//     });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// });
 
 function getFormattedDate(date) {
   const y = date.getFullYear();
