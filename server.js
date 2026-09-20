@@ -5733,6 +5733,72 @@ app.get("/api/leaderboard", async (req, res) => {
 //   }
 // });
 
+// app.get("/api/admin-users-tracker", async (req, res) => {
+//   try {
+//     const { language } = req.query;
+
+//     let formattedLang;
+//     if (language) {
+//       const lower = language.toLowerCase();
+//       if (lower === "te" || lower === "telugu") formattedLang = "Telugu";
+//       if (lower === "en" || lower === "english") formattedLang = "English";
+//     }
+
+//     const whereClause = {};
+//     if (formattedLang) {
+//       whereClause.language = formattedLang;
+//     }
+
+//     // Select required fields and order by highest points
+//     const users = await User.findAll({
+//       where: whereClause,
+//       attributes: [
+//         "id",
+//         "username",
+//         "name",
+//         "email",
+//         "points",
+//         "completedPracticeDates",
+//         "language",
+//         "role",
+//       ],
+//       order: [["points", "DESC"]],
+//       raw: true,
+//     });
+
+//     const formattedData = users.map((u) => {
+//       let dates = u.completedPracticeDates || [];
+
+//       // Handle stringified JSON if column is stored as TEXT/VARCHAR in DB
+//       if (typeof dates === "string") {
+//         try {
+//           dates = JSON.parse(dates);
+//         } catch {
+//           dates = [];
+//         }
+//       }
+
+//       return {
+//         id: u.id,
+//         name: u.name || u.username || "Student",
+//         email: u.email,
+//         points: u.points || 0,
+//         language: u.language,
+//         totalCompletedDays: Array.isArray(dates) ? dates.length : 0,
+//       };
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       count: formattedData.length,
+//       data: formattedData,
+//     });
+//   } catch (err) {
+//     return res.status(500).json({ success: false, message: err.message });
+//   }
+// });
+
+// GET /api/admin-users-tracker
 app.get("/api/admin-users-tracker", async (req, res) => {
   try {
     const { language } = req.query;
@@ -5749,14 +5815,13 @@ app.get("/api/admin-users-tracker", async (req, res) => {
       whereClause.language = formattedLang;
     }
 
-    // Select required fields and order by highest points
+    // Select valid model fields and order by highest points
     const users = await User.findAll({
       where: whereClause,
       attributes: [
         "id",
         "username",
-        "name",
-        "email",
+        "mobile",
         "points",
         "completedPracticeDates",
         "language",
@@ -5769,7 +5834,7 @@ app.get("/api/admin-users-tracker", async (req, res) => {
     const formattedData = users.map((u) => {
       let dates = u.completedPracticeDates || [];
 
-      // Handle stringified JSON if column is stored as TEXT/VARCHAR in DB
+      // Handle stringified JSON if column is stored as TEXT/VARCHAR
       if (typeof dates === "string") {
         try {
           dates = JSON.parse(dates);
@@ -5780,10 +5845,11 @@ app.get("/api/admin-users-tracker", async (req, res) => {
 
       return {
         id: u.id,
-        name: u.name || u.username || "Student",
-        email: u.email,
+        name: u.username || "Student",
+        mobile: u.mobile,
         points: u.points || 0,
         language: u.language,
+        role: u.role,
         totalCompletedDays: Array.isArray(dates) ? dates.length : 0,
       };
     });
