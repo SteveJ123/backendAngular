@@ -10624,6 +10624,99 @@ app.get("/api/admin-profile", async (req, res) => {
   }
 });
 
+
+app.get("/api/admin-profile/:userId", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    if (isNaN(userId) || userId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid User ID format",
+      });
+    }
+
+    // Replaces Mongoose aggregation pipeline ($match + $lookup + $sort + $project)
+    const adminUser = await User.findOne({
+      where: {
+        id: userId,
+        role: "admin",
+      },
+      attributes: [
+        "id",
+        "username",
+        "mobile",
+        "role",
+        "courseType",
+        "language",
+      ],
+      include: [
+        {
+          model: PersonalDetails,
+          as: "profileDetails", // Adjust alias based on your Sequelize associations
+          attributes: ["profileImage", "createdAt"],
+          required: false, // LEFT OUTER JOIN
+          where: {
+            profileImage: {
+              [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }],
+            },
+          },
+        },
+      ],
+      order: [
+        // Prioritize PersonalDetails records with valid images, then newest
+        [{ model: PersonalDetails, as: "profileDetails" }, "createdAt", "DESC"],
+      ],
+    });
+
+    if (!adminUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin user not found",
+      });
+    }
+
+    // Fallback search if no record matched the non-empty profileImage condition
+    let profileImage = "";
+    const details = adminUser.profileDetails;
+
+    if (Array.isArray(details) && details.length > 0) {
+      profileImage = details[0].profileImage || "";
+    } else if (details && details.profileImage) {
+      profileImage = details.profileImage;
+    } else {
+      // Fetch fallback PersonalDetails record if profileImage was empty/null
+      const fallbackDetails = await PersonalDetails.findOne({
+        where: { userId: adminUser.id },
+        order: [["createdAt", "DESC"]],
+        attributes: ["profileImage"],
+      });
+      profileImage = fallbackDetails?.profileImage || "";
+    }
+
+    const responseData = {
+      id: adminUser.id,
+      username: adminUser.username,
+      mobile: adminUser.mobile,
+      role: adminUser.role,
+      courseType: adminUser.courseType,
+      language: adminUser.language,
+      profileImage,
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: responseData,
+    });
+  } catch (error) {
+    console.error("Error fetching admin profile:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching admin profile",
+      error: error.message,
+    });
+  }
+});
+
 app.post("/api/media/upload-url", async (req, res) => {
   try {
     const { fileType, folder } = req.body;
