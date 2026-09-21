@@ -9322,32 +9322,129 @@ app.get("/api/admin-comments/post/:postId", async (req, res) => {
 });
 
 // GET: Filter support team members by language
+// app.get("/api/support-team", async (req, res) => {
+//   try {
+//     const { language } = req.query;
+//     const formattedLang = language;
+
+//     const filter = {};
+//     if (formattedLang) {
+//       filter.language = formattedLang;
+//     }
+
+//     const members = await SupportTeam.find(filter).sort({ createdAt: -1 });
+//     return res
+//       .status(200)
+//       .json({ success: true, count: members.length, data: members });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // POST: Create a new support team member with language
+// app.post("/api/support-team", async (req, res) => {
+//   try {
+//     const { name, role, avatar, phone, email, available, language } = req.body;
+//     const formattedLang = language;
+
+//     if (!name || !role || !phone || !email || !formattedLang) {
+//       return res.status(400).json({
+//         success: false,
+//         message:
+//           "Required fields missing, including language ('English' or 'Telugu').",
+//       });
+//     }
+
+//     const newMember = await SupportTeam.create({
+//       name,
+//       role,
+//       avatar,
+//       phone,
+//       email,
+//       available,
+//       language: formattedLang,
+//     });
+
+//     return res.status(201).json({ success: true, data: newMember });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // PUT: Update support team member
+// app.put("/api/support-team/:id", async (req, res) => {
+//   try {
+//     const updateData = { ...req.body };
+//     if (updateData.language) {
+//       updateData.language = updateData.language;
+//     }
+
+//     const updatedMember = await SupportTeam.findByIdAndUpdate(
+//       req.params.id,
+//       { $set: updateData },
+//       { new: true, runValidators: true },
+//     );
+
+//     if (!updatedMember) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Member not found." });
+//     }
+
+//     return res.status(200).json({ success: true, data: updatedMember });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // DELETE: Remove support team member
+// app.delete("/api/support-team/:id", async (req, res) => {
+//   try {
+//     const deletedMember = await SupportTeam.findByIdAndDelete(req.params.id);
+//     if (!deletedMember) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Member not found." });
+//     }
+//     return res
+//       .status(200)
+//       .json({ success: true, message: "Member deleted successfully." });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// GET: Fetch support team members with optional language filter
 app.get("/api/support-team", async (req, res) => {
   try {
     const { language } = req.query;
-    const formattedLang = language;
 
-    const filter = {};
-    if (formattedLang) {
-      filter.language = formattedLang;
+    const whereClause = {};
+    if (language) {
+      whereClause.language = language;
     }
 
-    const members = await SupportTeam.find(filter).sort({ createdAt: -1 });
+    // Replaces SupportTeam.find(filter).sort({ createdAt: -1 })
+    const members = await SupportTeam.findAll({
+      where: whereClause,
+      order: [["createdAt", "DESC"]],
+    });
+
     return res
       .status(200)
       .json({ success: true, count: members.length, data: members });
   } catch (error) {
+    console.error("Error fetching support team:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST: Create a new support team member with language
+// POST: Create a new support team member
 app.post("/api/support-team", async (req, res) => {
   try {
     const { name, role, avatar, phone, email, available, language } = req.body;
-    const formattedLang = language;
 
-    if (!name || !role || !phone || !email || !formattedLang) {
+    if (!name || !role || !phone || !email || !language) {
       return res.status(400).json({
         success: false,
         message:
@@ -9355,6 +9452,7 @@ app.post("/api/support-team", async (req, res) => {
       });
     }
 
+    // Replaces SupportTeam.create(...)
     const newMember = await SupportTeam.create({
       name,
       role,
@@ -9362,11 +9460,12 @@ app.post("/api/support-team", async (req, res) => {
       phone,
       email,
       available,
-      language: formattedLang,
+      language,
     });
 
     return res.status(201).json({ success: true, data: newMember });
   } catch (error) {
+    console.error("Error creating support team member:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -9374,25 +9473,26 @@ app.post("/api/support-team", async (req, res) => {
 // PUT: Update support team member
 app.put("/api/support-team/:id", async (req, res) => {
   try {
-    const updateData = { ...req.body };
-    if (updateData.language) {
-      updateData.language = updateData.language;
+    const memberId = parseInt(req.params.id, 10);
+    if (isNaN(memberId) || memberId <= 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid member ID." });
     }
 
-    const updatedMember = await SupportTeam.findByIdAndUpdate(
-      req.params.id,
-      { $set: updateData },
-      { new: true, runValidators: true },
-    );
-
-    if (!updatedMember) {
+    // Replaces SupportTeam.findByIdAndUpdate(...)
+    const member = await SupportTeam.findByPk(memberId);
+    if (!member) {
       return res
         .status(404)
         .json({ success: false, message: "Member not found." });
     }
 
+    const updatedMember = await member.update(req.body);
+
     return res.status(200).json({ success: true, data: updatedMember });
   } catch (error) {
+    console.error("Error updating support team member:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -9400,16 +9500,28 @@ app.put("/api/support-team/:id", async (req, res) => {
 // DELETE: Remove support team member
 app.delete("/api/support-team/:id", async (req, res) => {
   try {
-    const deletedMember = await SupportTeam.findByIdAndDelete(req.params.id);
-    if (!deletedMember) {
+    const memberId = parseInt(req.params.id, 10);
+    if (isNaN(memberId) || memberId <= 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid member ID." });
+    }
+
+    // Replaces SupportTeam.findByIdAndDelete(...)
+    const member = await SupportTeam.findByPk(memberId);
+    if (!member) {
       return res
         .status(404)
         .json({ success: false, message: "Member not found." });
     }
+
+    await member.destroy();
+
     return res
       .status(200)
       .json({ success: true, message: "Member deleted successfully." });
   } catch (error) {
+    console.error("Error deleting support team member:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -9577,6 +9689,64 @@ app.get("/api/personal-details/:userId", async (req, res) => {
 //   }
 // });
 
+// app.put("/api/personal-details/:userId", async (req, res) => {
+//   try {
+//     const { userId } = req.params;
+//     const { name, aboutYou, gender, birthday, language } = req.body;
+
+//     const parsedUserId = parseInt(userId, 10);
+//     if (isNaN(parsedUserId) || parsedUserId <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid user ID format",
+//       });
+//     }
+
+//     const formattedLang = language || "";
+
+//     // 1. Perform UPSERT using Sequelize
+//     // Note: Ensures 'userId' and 'language' have a composite UNIQUE constraint on the table
+//     await PersonalDetails.upsert({
+//       userId: parsedUserId,
+//       name: name || null,
+//       aboutYou: aboutYou || null,
+//       gender: gender || null,
+//       birthday: birthday || null,
+//       language: formattedLang,
+//     });
+
+//     // 2. Sync updated name to the User (register) model if provided
+//     if (name) {
+//       await User.update({ username: name }, { where: { id: parsedUserId } });
+//     }
+
+//     // 3. Fetch the updated record
+//     const updatedDetails = await PersonalDetails.findOne({
+//       where: {
+//         userId: parsedUserId,
+//         language: formattedLang,
+//       },
+//     });
+
+//     const data = updatedDetails ? updatedDetails.toJSON() : null;
+//     if (data) {
+//       data._id = data.id; // Map id for frontend compatibility if needed
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Personal details updated successfully",
+//       data,
+//     });
+//   } catch (error) {
+//     console.error("Error updating personal details:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// });
+
 app.put("/api/personal-details/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -9586,55 +9756,64 @@ app.put("/api/personal-details/:userId", async (req, res) => {
     if (isNaN(parsedUserId) || parsedUserId <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Invalid user ID format",
+        message: "Invalid userId parameter.",
       });
     }
 
-    const formattedLang = language || "";
+    const formattedLang = language;
 
-    // 1. Perform UPSERT using Sequelize
-    // Note: Ensures 'userId' and 'language' have a composite UNIQUE constraint on the table
-    await PersonalDetails.upsert({
-      userId: parsedUserId,
-      name: name || null,
-      aboutYou: aboutYou || null,
-      gender: gender || null,
-      birthday: birthday || null,
-      language: formattedLang,
-    });
-
-    // 2. Sync updated name to the User (register) model if provided
-    if (name) {
-      await User.update({ username: name }, { where: { id: parsedUserId } });
-    }
-
-    // 3. Fetch the updated record
-    const updatedDetails = await PersonalDetails.findOne({
+    // 1. Check if PersonalDetails record exists for this userId and language
+    let details = await PersonalDetails.findOne({
       where: {
         userId: parsedUserId,
         language: formattedLang,
       },
     });
 
-    const data = updatedDetails ? updatedDetails.toJSON() : null;
-    if (data) {
-      data._id = data.id; // Map id for frontend compatibility if needed
+    if (details) {
+      // Update existing record
+      await details.update({
+        name,
+        aboutYou,
+        gender,
+        birthday,
+        language: formattedLang,
+      });
+    } else {
+      // Create new record if it doesn't exist (upsert equivalent)
+      details = await PersonalDetails.create({
+        userId: parsedUserId,
+        name,
+        aboutYou,
+        gender,
+        birthday,
+        language: formattedLang,
+      });
+    }
+
+    // 2. Update the username in the User model if provided
+    if (name) {
+      await User.update(
+        { username: name },
+        {
+          where: { id: parsedUserId },
+        },
+      );
     }
 
     return res.status(200).json({
       success: true,
       message: "Personal details updated successfully",
-      data,
+      data: details,
     });
   } catch (error) {
     console.error("Error updating personal details:", error);
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Server Error",
     });
   }
 });
-
 // app.put("/api/personal-details/:userId/profile-image", async (req, res) => {
 //   try {
 //     const { userId } = req.params;
