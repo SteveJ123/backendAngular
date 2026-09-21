@@ -4132,9 +4132,141 @@ app.patch("/api/posts/:postId/like", async (req, res) => {
 //   }
 // });
 
+// app.get("/api/notifications", async (req, res) => {
+//   try {
+//     const { userId, language } = req.query;
+
+//     const parsedUserId = parseInt(userId, 10);
+//     if (!userId || isNaN(parsedUserId) || parsedUserId <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "userId query parameter is required and must be a valid ID.",
+//       });
+//     }
+
+//     // 1. Verify target user
+//     const user = await User.findByPk(parsedUserId, {
+//       attributes: ["id", "role", "language"],
+//     });
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found.",
+//       });
+//     }
+
+//     let targetLang = null;
+//     const langInput = language || user.language;
+
+//     if (langInput) {
+//       const lower = langInput.toLowerCase();
+//       if (lower === "telugu" || lower === "te") targetLang = "Telugu";
+//       if (lower === "english" || lower === "en") targetLang = "English";
+//     }
+
+//     // 2. Fetch notifications with polymorphic includes
+//     const notificationsData = await Notification.findAll({
+//       where: {
+//         recipientId: parsedUserId,
+//       },
+//       order: [["createdAt", "DESC"]],
+//       include: [
+//         {
+//           model: User,
+//           as: "sender",
+//           attributes: ["id", "username", "courseType", "role"],
+//           required: false,
+//         },
+//         {
+//           model: Post,
+//           attributes: ["id", "content", "mediaFiles", "courseType", "language"],
+//           required: false,
+//         },
+//         {
+//           model: AdminPost,
+//           attributes: ["id", "content", "mediaFiles", "courseType", "language"],
+//           required: false,
+//         },
+//         {
+//           model: Comment,
+//           attributes: ["id", "content", "userId", "parentId"],
+//           required: false,
+//         },
+//         {
+//           model: AdminComment,
+//           attributes: ["id", "content", "userId", "parentId"],
+//           required: false,
+//         },
+//       ],
+//     });
+
+//     // 3. Format response structure
+//     const notifications = notificationsData.map((instance) => {
+//       const n = instance.toJSON();
+//       const sender = n.sender || n.User;
+//       const post = n.AdminPost || n.adminPost || n.Post || n.post;
+//       const comment =
+//         n.AdminComment || n.adminComment || n.Comment || n.comment;
+
+//       const resolvedCommentId = n.commentId || (comment ? comment.id : null);
+
+//       return {
+//         _id: n.id,
+//         recipient: n.recipientId,
+//         type: n.type,
+//         isRead: Boolean(n.isRead),
+//         postModel: n.postModel || (n.AdminPost ? "AdminPost" : "Post"),
+//         language:
+//           post && post.language ? post.language : targetLang || "English",
+//         postContentSnippet: n.postContentSnippet || "",
+//         commentId: resolvedCommentId
+//           ? {
+//               _id: resolvedCommentId,
+//               id: resolvedCommentId,
+//               content: comment ? comment.content : "",
+//             }
+//           : null,
+//         sender: sender
+//           ? {
+//               _id: sender.id,
+//               username: sender.username || "",
+//               courseType: sender.courseType || "",
+//               role: sender.role || "",
+//             }
+//           : null,
+//         postId: post
+//           ? {
+//               _id: post.id,
+//               content: post.content || "",
+//               mediaFiles: post.mediaFiles || [],
+//               courseType: post.courseType || [],
+//               language: post.language || "",
+//             }
+//           : null,
+//         createdAt: n.createdAt,
+//         updatedAt: n.updatedAt || n.createdAt,
+//       };
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       count: notifications.length,
+//       data: notifications,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching notifications:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server Error",
+//       error: error.message,
+//     });
+//   }
+// });
+
 app.get("/api/notifications", async (req, res) => {
   try {
-    const { userId, language } = req.query;
+    const { userId, language, unreadOnly = "true" } = req.query;
 
     const parsedUserId = parseInt(userId, 10);
     if (!userId || isNaN(parsedUserId) || parsedUserId <= 0) {
@@ -4165,11 +4297,19 @@ app.get("/api/notifications", async (req, res) => {
       if (lower === "english" || lower === "en") targetLang = "English";
     }
 
-    // 2. Fetch notifications with polymorphic includes
+    // 2. Build where filter condition
+    const whereCondition = {
+      recipientId: parsedUserId,
+    };
+
+    // Defaults to fetching only unread notifications (isRead: false)
+    if (unreadOnly === "true") {
+      whereCondition.isRead = false;
+    }
+
+    // 3. Fetch notifications with polymorphic includes
     const notificationsData = await Notification.findAll({
-      where: {
-        recipientId: parsedUserId,
-      },
+      where: whereCondition,
       order: [["createdAt", "DESC"]],
       include: [
         {
@@ -4201,7 +4341,7 @@ app.get("/api/notifications", async (req, res) => {
       ],
     });
 
-    // 3. Format response structure
+    // 4. Format response structure
     const notifications = notificationsData.map((instance) => {
       const n = instance.toJSON();
       const sender = n.sender || n.User;
@@ -4380,6 +4520,75 @@ app.patch("/api/notifications/:id/read", async (req, res) => {
       message: "Server Error",
       error: error.message,
     });
+  }
+});
+
+// PATCH /api/notifications/read-all
+// app.patch("/api/notifications/read-all", async (req, res) => {
+//   try {
+//     const { userId } = req.query;
+
+//     if (!userId) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "User ID is required" });
+//     }
+
+//     // Matches 'recipientId' in your Notification model definition
+//     const [updatedCount] = await Notification.update(
+//       { isRead: true },
+//       {
+//         where: {
+//           recipientId: userId,
+//           isRead: false,
+//         },
+//       }
+//     );
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "All notifications marked as read",
+//       updatedCount,
+//     });
+//   } catch (error) {
+//     console.error("Error in read-all:", error);
+//     return res.status(500).json({ success: false, error: error.message });
+//   }
+// });
+
+app.patch("/api/notifications/read-all", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const parsedUserId = parseInt(userId, 10);
+
+    if (!userId || isNaN(parsedUserId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid User ID is required" });
+    }
+
+    const [updatedCount] = await Notification.update(
+      { isRead: true },
+      {
+        where: {
+          recipientId: parsedUserId,
+          isRead: false,
+        },
+      },
+    );
+
+    console.log(
+      `Marked ${updatedCount} notifications as read for user ${parsedUserId}`,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "All notifications marked as read",
+      updatedCount,
+    });
+  } catch (error) {
+    console.error("Error in read-all:", error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
