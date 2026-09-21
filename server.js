@@ -348,24 +348,170 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
+// app.get("/api/registered-users", async (req, res) => {
+//   try {
+//     const { courseType } = req.query;
+
+//     // Filter query construction
+//     let query = {};
+//     if (courseType) {
+//       query.courseType = courseType;
+//     }
+
+//     const users = await User.find(query, {
+//       username: 1,
+//       mobile: 1,
+//       role: 1,
+//       courseType: 1,
+//       language: 1,
+//       createdAt: 1,
+//     }).sort({ createdAt: -1 });
+
+//     return res.status(200).json({
+//       success: true,
+//       data: users,
+//     });
+//   } catch (error) {
+//     console.error("Fetch Users Error:", error);
+//     return res
+//       .status(500)
+//       .json({ message: "Server error while fetching registered users" });
+//   }
+// });
+
+// app.put("/api/registered-users/:id", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { username, mobile, role, courseType } = req.body;
+
+//     // Validate courseType enum
+//     const allowedCourses = ["Face Yoga", "Face Yoga + Raj Yoga"];
+//     if (courseType && !allowedCourses.includes(courseType)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid course type provided.",
+//       });
+//     }
+
+//     // Build update object dynamically
+//     const updateFields = {};
+//     if (username !== undefined) updateFields.username = username;
+//     if (mobile !== undefined) updateFields.mobile = mobile;
+//     if (role !== undefined) updateFields.role = role;
+//     if (courseType !== undefined) updateFields.courseType = courseType;
+
+//     // Perform update in MongoDB
+//     const updatedUser = await User.findByIdAndUpdate(
+//       id,
+//       { $set: updateFields },
+//       {
+//         new: true, // Return updated document
+//         runValidators: true, // Run Mongoose schema validation
+//         projection: {
+//           username: 1,
+//           mobile: 1,
+//           role: 1,
+//           courseType: 1,
+//           createdAt: 1,
+//           updatedAt: 1,
+//         },
+//       },
+//     );
+
+//     if (!updatedUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found.",
+//       });
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "User updated successfully.",
+//       data: updatedUser,
+//     });
+//   } catch (error) {
+//     console.error("Update User Error:", error);
+
+//     // Handle MongoDB duplicate key error (e.g., duplicate mobile number)
+//     if (error.code === 11000) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Mobile number already in use by another account.",
+//       });
+//     }
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error while updating user.",
+//     });
+//   }
+// });
+
+// app.delete("/api/registered-users/:id", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     // Remove user from MongoDB collection
+//     const deletedUser = await User.findByIdAndDelete(id);
+
+//     if (!deletedUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found.",
+//       });
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "User deleted successfully.",
+//       data: {
+//         id: deletedUser._id,
+//         username: deletedUser.username,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Delete User Error:", error);
+
+//     // Handle invalid MongoDB ObjectId format
+//     if (error.kind === "ObjectId") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid User ID format.",
+//       });
+//     }
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error while deleting user.",
+//     });
+//   }
+// });
+
+// GET: Fetch registered users with optional courseType filter
 app.get("/api/registered-users", async (req, res) => {
   try {
     const { courseType } = req.query;
 
-    // Filter query construction
-    let query = {};
+    const whereClause = {};
     if (courseType) {
-      query.courseType = courseType;
+      whereClause.courseType = courseType;
     }
 
-    const users = await User.find(query, {
-      username: 1,
-      mobile: 1,
-      role: 1,
-      courseType: 1,
-      language: 1,
-      createdAt: 1,
-    }).sort({ createdAt: -1 });
+    // Replaces User.find(query, projection).sort({ createdAt: -1 })
+    const users = await User.findAll({
+      where: whereClause,
+      attributes: [
+        "id",
+        "username",
+        "mobile",
+        "role",
+        "courseType",
+        "language",
+        "createdAt",
+      ],
+      order: [["createdAt", "DESC"]],
+    });
 
     return res.status(200).json({
       success: true,
@@ -379,9 +525,17 @@ app.get("/api/registered-users", async (req, res) => {
   }
 });
 
+// PUT: Update registered user
 app.put("/api/registered-users/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId) || userId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid User ID format.",
+      });
+    }
+
     const { username, mobile, role, courseType } = req.body;
 
     // Validate courseType enum
@@ -393,6 +547,15 @@ app.put("/api/registered-users/:id", async (req, res) => {
       });
     }
 
+    // Check if user exists
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
     // Build update object dynamically
     const updateFields = {};
     if (username !== undefined) updateFields.username = username;
@@ -400,41 +563,33 @@ app.put("/api/registered-users/:id", async (req, res) => {
     if (role !== undefined) updateFields.role = role;
     if (courseType !== undefined) updateFields.courseType = courseType;
 
-    // Perform update in MongoDB
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { $set: updateFields },
-      {
-        new: true, // Return updated document
-        runValidators: true, // Run Mongoose schema validation
-        projection: {
-          username: 1,
-          mobile: 1,
-          role: 1,
-          courseType: 1,
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      },
-    );
+    // Update user record
+    await user.update(updateFields);
 
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found.",
-      });
-    }
+    // Format output fields to match the previous Mongoose projection
+    const updatedUserResponse = {
+      id: user.id,
+      username: user.username,
+      mobile: user.mobile,
+      role: user.role,
+      courseType: user.courseType,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
 
     return res.status(200).json({
       success: true,
       message: "User updated successfully.",
-      data: updatedUser,
+      data: updatedUserResponse,
     });
   } catch (error) {
     console.error("Update User Error:", error);
 
-    // Handle MongoDB duplicate key error (e.g., duplicate mobile number)
-    if (error.code === 11000) {
+    // Handle Sequelize Unique Constraint Error (e.g., duplicate mobile number)
+    if (
+      error.name === "SequelizeUniqueConstraintError" ||
+      error.name === "SequelizeUniqueConstraintError"
+    ) {
       return res.status(400).json({
         success: false,
         message: "Mobile number already in use by another account.",
@@ -448,38 +603,40 @@ app.put("/api/registered-users/:id", async (req, res) => {
   }
 });
 
+// DELETE: Remove user
 app.delete("/api/registered-users/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId) || userId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid User ID format.",
+      });
+    }
 
-    // Remove user from MongoDB collection
-    const deletedUser = await User.findByIdAndDelete(id);
-
-    if (!deletedUser) {
+    const user = await User.findByPk(userId);
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found.",
       });
     }
 
+    const deletedUserData = {
+      id: user.id,
+      username: user.username,
+    };
+
+    // Remove user from SQL table
+    await user.destroy();
+
     return res.status(200).json({
       success: true,
       message: "User deleted successfully.",
-      data: {
-        id: deletedUser._id,
-        username: deletedUser.username,
-      },
+      data: deletedUserData,
     });
   } catch (error) {
     console.error("Delete User Error:", error);
-
-    // Handle invalid MongoDB ObjectId format
-    if (error.kind === "ObjectId") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid User ID format.",
-      });
-    }
 
     return res.status(500).json({
       success: false,
@@ -9415,16 +9572,132 @@ app.get("/api/admin-comments/post/:postId", async (req, res) => {
 // });
 
 // GET: Fetch support team members with optional language filter
+// app.get("/api/support-team", async (req, res) => {
+//   try {
+//     const { language } = req.query;
+
+//     const whereClause = {};
+//     if (language) {
+//       whereClause.language = language;
+//     }
+
+//     // Replaces SupportTeam.find(filter).sort({ createdAt: -1 })
+//     const members = await SupportTeam.findAll({
+//       where: whereClause,
+//       order: [["createdAt", "DESC"]],
+//     });
+
+//     return res
+//       .status(200)
+//       .json({ success: true, count: members.length, data: members });
+//   } catch (error) {
+//     console.error("Error fetching support team:", error);
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // POST: Create a new support team member
+// app.post("/api/support-team", async (req, res) => {
+//   try {
+//     const { name, role, avatar, phone, email, available, language } = req.body;
+
+//     if (!name || !role || !phone || !email || !language) {
+//       return res.status(400).json({
+//         success: false,
+//         message:
+//           "Required fields missing, including language ('English' or 'Telugu').",
+//       });
+//     }
+
+//     // Replaces SupportTeam.create(...)
+//     const newMember = await SupportTeam.create({
+//       name,
+//       role,
+//       avatar,
+//       phone,
+//       email,
+//       available,
+//       language,
+//     });
+
+//     return res.status(201).json({ success: true, data: newMember });
+//   } catch (error) {
+//     console.error("Error creating support team member:", error);
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // PUT: Update support team member
+// app.put("/api/support-team/:id", async (req, res) => {
+//   try {
+//     const memberId = parseInt(req.params.id, 10);
+//     if (isNaN(memberId) || memberId <= 0) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Invalid member ID." });
+//     }
+
+//     // Replaces SupportTeam.findByIdAndUpdate(...)
+//     const member = await SupportTeam.findByPk(memberId);
+//     if (!member) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Member not found." });
+//     }
+
+//     const updatedMember = await member.update(req.body);
+
+//     return res.status(200).json({ success: true, data: updatedMember });
+//   } catch (error) {
+//     console.error("Error updating support team member:", error);
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// // DELETE: Remove support team member
+// app.delete("/api/support-team/:id", async (req, res) => {
+//   try {
+//     const memberId = parseInt(req.params.id, 10);
+//     if (isNaN(memberId) || memberId <= 0) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Invalid member ID." });
+//     }
+
+//     // Replaces SupportTeam.findByIdAndDelete(...)
+//     const member = await SupportTeam.findByPk(memberId);
+//     if (!member) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Member not found." });
+//     }
+
+//     await member.destroy();
+
+//     return res
+//       .status(200)
+//       .json({ success: true, message: "Member deleted successfully." });
+//   } catch (error) {
+//     console.error("Error deleting support team member:", error);
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// GET: Fetch support team members with optional language filter
 app.get("/api/support-team", async (req, res) => {
   try {
     const { language } = req.query;
 
     const whereClause = {};
+
     if (language) {
-      whereClause.language = language;
+      const lower = language.toLowerCase();
+      if (lower === "telugu" || lower === "te") whereClause.language = "Telugu";
+      else if (lower === "english" || lower === "en")
+        whereClause.language = "English";
+      else whereClause.language = language;
     }
 
-    // Replaces SupportTeam.find(filter).sort({ createdAt: -1 })
     const members = await SupportTeam.findAll({
       where: whereClause,
       order: [["createdAt", "DESC"]],
@@ -9452,15 +9725,19 @@ app.post("/api/support-team", async (req, res) => {
       });
     }
 
-    // Replaces SupportTeam.create(...)
+    let formattedLang = language;
+    const lower = language.toLowerCase();
+    if (lower === "telugu" || lower === "te") formattedLang = "Telugu";
+    if (lower === "english" || lower === "en") formattedLang = "English";
+
     const newMember = await SupportTeam.create({
       name,
       role,
-      avatar,
+      avatar: avatar || null,
       phone,
       email,
-      available,
-      language,
+      available: available !== undefined ? available : true,
+      language: formattedLang,
     });
 
     return res.status(201).json({ success: true, data: newMember });
@@ -9480,7 +9757,6 @@ app.put("/api/support-team/:id", async (req, res) => {
         .json({ success: false, message: "Invalid member ID." });
     }
 
-    // Replaces SupportTeam.findByIdAndUpdate(...)
     const member = await SupportTeam.findByPk(memberId);
     if (!member) {
       return res
@@ -9488,7 +9764,16 @@ app.put("/api/support-team/:id", async (req, res) => {
         .json({ success: false, message: "Member not found." });
     }
 
-    const updatedMember = await member.update(req.body);
+    const updateData = { ...req.body };
+
+    if (updateData.language) {
+      const lower = updateData.language.toLowerCase();
+      if (lower === "telugu" || lower === "te") updateData.language = "Telugu";
+      if (lower === "english" || lower === "en")
+        updateData.language = "English";
+    }
+
+    const updatedMember = await member.update(updateData);
 
     return res.status(200).json({ success: true, data: updatedMember });
   } catch (error) {
@@ -9507,7 +9792,6 @@ app.delete("/api/support-team/:id", async (req, res) => {
         .json({ success: false, message: "Invalid member ID." });
     }
 
-    // Replaces SupportTeam.findByIdAndDelete(...)
     const member = await SupportTeam.findByPk(memberId);
     if (!member) {
       return res
