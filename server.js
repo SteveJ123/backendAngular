@@ -6033,7 +6033,7 @@ app.get("/api/leaderboard", async (req, res) => {
     // Top 4 All-Time (Sorted by points DESC)
     const allTime = [...processedUsers]
       .sort((a, b) => b.points - a.points)
-      .slice(0, 4);
+      .slice(0, 9);
 
     // Top 4 Monthly (Sorted by monthlyCount DESC, then points DESC)
     const monthly = [...processedUsers]
@@ -10623,7 +10623,6 @@ app.get("/api/admin-profile", async (req, res) => {
     });
   }
 });
-
 
 app.get("/api/admin-profile/:userId", async (req, res) => {
   try {
