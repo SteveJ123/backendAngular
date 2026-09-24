@@ -111,6 +111,7 @@ import {
   Product,
   SupportTeam,
   Nutrition,
+  DailyRoutine,
 } from "./models/index.js";
 
 // 7. Express App Initialization
@@ -11032,6 +11033,401 @@ app.delete("/api/nutrition/:id", async (req, res) => {
       .json({ success: true, message: "Item deleted successfully" });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==========================================
+// 1. CREATE ROUTINE (Admin)
+// ==========================================
+// app.post("/api/routines", async (req, res) => {
+//   try {
+//     const { userId, language, date, time, task } = req.body;
+
+//     const newRoutine = await DailyRoutine.create({
+//       userId,
+//       language: language || "english",
+//       date,
+//       time,
+//       task,
+//     });
+
+//     res.status(201).json({
+//       message: "Routine created successfully",
+//       routine: newRoutine,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+// Helper function to format any DB date output strictly to IST YYYY-MM-DD
+const formatToISTDateString = (dateInput) => {
+  if (!dateInput) return "";
+  const dateObj = new Date(dateInput);
+  return dateObj.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // Returns 'YYYY-MM-DD' in IST
+};
+
+app.post("/api/routines", async (req, res) => {
+  try {
+    const { userId, language, date, routines } = req.body;
+
+    if (!userId || !date) {
+      return res
+        .status(400)
+        .json({ message: "userId and date are required fields." });
+    }
+
+    if (!Array.isArray(routines) || routines.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Routines array cannot be empty" });
+    }
+
+    const selectedLanguage = language || "english";
+
+    // Standardize structure inside the array
+    const routineArray = routines.map((item) => ({
+      time: item.time,
+      task: item.task,
+      isCompleted: item.isCompleted || false,
+    }));
+
+    // 1. Delete existing record for this user, date, and language
+    await DailyRoutine.destroy({
+      where: {
+        userId,
+        language: selectedLanguage,
+        date,
+      },
+    });
+
+    // 2. Create single database record storing routines array inside JSON column
+    const createdRecord = await DailyRoutine.create({
+      userId,
+      language: selectedLanguage,
+      date,
+      routines: routineArray, // Stored as JSON column in MySQL
+    });
+
+    const responseData = createdRecord.toJSON();
+    responseData.date = formatToISTDateString(responseData.date);
+
+    res.status(201).json({
+      message: "Routines saved successfully",
+      routineRecord: responseData,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 2. UPDATE ROUTINE (Admin)
+// ==========================================
+
+app.put("/api/routines/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { language, date, routines } = req.body;
+
+    const routineRecord = await DailyRoutine.findByPk(id);
+    if (!routineRecord) {
+      return res.status(404).json({ message: "Routine record not found" });
+    }
+
+    // Update fields if provided
+    if (language) {
+      routineRecord.language = language;
+    }
+
+    if (date) {
+      routineRecord.date = date;
+    }
+
+    if (routines) {
+      if (!Array.isArray(routines) || routines.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "Routines must be a non-empty array" });
+      }
+
+      // Standardize the array structure before storing in JSON column
+      routineRecord.routines = routines.map((item) => ({
+        time: item.time,
+        task: item.task,
+        isCompleted:
+          typeof item.isCompleted === "boolean" ? item.isCompleted : false,
+      }));
+    }
+
+    await routineRecord.save();
+
+    // Format output date to IST (YYYY-MM-DD)
+    const responseData = routineRecord.toJSON();
+    responseData.date = formatToISTDateString(responseData.date);
+
+    res.status(200).json({
+      message: "Routine record updated successfully",
+      routineRecord: responseData,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 3. GET MONTHLY ROUTINES
+// ==========================================
+
+app.get("/api/routines/monthly", async (req, res) => {
+  try {
+    const { userId, year, month, language } = req.query;
+
+    if (!userId || !year || !month) {
+      return res.status(400).json({
+        message: "userId, year, and month are required query parameters.",
+      });
+    }
+
+    const formattedMonth = String(month).padStart(2, "0");
+    const startDate = `${year}-${formattedMonth}-01`;
+    const lastDay = new Date(Number(year), Number(month), 0).getDate();
+    const endDate = `${year}-${formattedMonth}-${String(lastDay).padStart(2, "0")}`;
+
+    const records = await DailyRoutine.findAll({
+      where: {
+        userId,
+        language: language || "english",
+        date: { [Op.between]: [startDate, endDate] },
+      },
+      order: [["date", "ASC"]],
+    });
+
+    const formattedRecords = records.map((record) => {
+      const data = record.toJSON();
+      data.date = formatToISTDateString(data.date);
+      return data;
+    });
+
+    res.status(200).json(formattedRecords);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 4. GET ROUTINES BY DATE
+// ==========================================
+
+app.get("/api/routines/by-date", async (req, res) => {
+  try {
+    const { userId, date, language } = req.query;
+
+    if (!userId || !date) {
+      return res.status(400).json({
+        message: "userId and date are required query parameters.",
+      });
+    }
+
+    // Find the single daily routine record for this user, date, and language
+    const routineRecord = await DailyRoutine.findOne({
+      where: {
+        userId,
+        date,
+        language: language || "english",
+      },
+    });
+
+    if (!routineRecord) {
+      return res.status(200).json({
+        id: null,
+        userId: Number(userId),
+        date,
+        language: language || "english",
+        routines: [],
+      });
+    }
+
+    const responseData = routineRecord.toJSON();
+    responseData.date = formatToISTDateString(responseData.date);
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 5. TOGGLE TASK COMPLETION (User)
+// ==========================================
+
+// app.patch("/api/routines/:id/complete", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { taskIndex, isCompleted } = req.body;
+
+//     // Validate inputs
+//     if (typeof taskIndex !== "number" || typeof isCompleted !== "boolean") {
+//       return res.status(400).json({
+//         message: "taskIndex (number) and isCompleted (boolean) are required.",
+//       });
+//     }
+
+//     const routineRecord = await DailyRoutine.findByPk(id);
+//     if (!routineRecord) {
+//       return res.status(404).json({ message: "Routine record not found" });
+//     }
+
+//     // Get current JSON array
+//     const routinesArray = [...(routineRecord.routines || [])];
+
+//     if (taskIndex < 0 || taskIndex >= routinesArray.length) {
+//       return res.status(400).json({ message: "Invalid taskIndex provided." });
+//     }
+
+//     // Update completion state for target item inside JSON array
+//     routinesArray[taskIndex] = {
+//       ...routinesArray[taskIndex],
+//       isCompleted,
+//     };
+
+//     // Re-assign array to trigger Sequelize JSON mutation detection
+//     routineRecord.routines = routinesArray;
+//     await routineRecord.save();
+
+//     // Format response date to IST
+//     const responseData = routineRecord.toJSON();
+//     responseData.date = formatToISTDateString(responseData.date);
+
+//     res.status(200).json({
+//       message: "Completion status updated successfully",
+//       routineRecord: responseData,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+app.patch("/api/routines/:id/complete", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taskIndex, isCompleted } = req.body;
+
+    if (typeof taskIndex !== "number" || typeof isCompleted !== "boolean") {
+      return res
+        .status(400)
+        .json({ message: "taskIndex and isCompleted are required." });
+    }
+
+    const routineRecord = await DailyRoutine.findByPk(id);
+    if (!routineRecord) {
+      return res.status(404).json({ message: "Routine record not found" });
+    }
+
+    let routinesArray =
+      typeof routineRecord.routines === "string"
+        ? JSON.parse(routineRecord.routines)
+        : [...(routineRecord.routines || [])];
+
+    if (taskIndex < 0 || taskIndex >= routinesArray.length) {
+      return res.status(400).json({ message: "Invalid taskIndex provided." });
+    }
+
+    // Toggle completion for item at taskIndex
+    routinesArray[taskIndex].isCompleted = isCompleted;
+
+    routineRecord.routines = routinesArray;
+    await routineRecord.save();
+
+    res.status(200).json({
+      message: "Completion status updated successfully",
+      routine: routineRecord,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 6. DELETE ROUTINE (Admin)
+// ==========================================
+// app.delete("/api/routines/:id", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const routine = await DailyRoutine.findByPk(id);
+//     if (!routine) {
+//       return res.status(404).json({ message: "Routine not found" });
+//     }
+
+//     await routine.destroy();
+//     res.status(200).json({ message: "Routine deleted successfully" });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+// 3. DELETE: Remove Single Routine by ID
+// app.delete("/api/routines/:id", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const routine = await DailyRoutine.findByPk(id);
+//     if (!routine) {
+//       return res.status(404).json({ message: "Routine not found" });
+//     }
+
+//     await routine.destroy();
+
+//     res.status(200).json({
+//       message: "Routine deleted successfully",
+//       id: Number(id),
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+app.delete("/api/routines/:id/task/:index", async (req, res) => {
+  try {
+    const { id, index } = req.params;
+    const taskIndex = Number(index);
+
+    if (isNaN(taskIndex)) {
+      return res
+        .status(400)
+        .json({ message: "Task index must be a valid number." });
+    }
+
+    const routineRecord = await DailyRoutine.findByPk(id);
+    if (!routineRecord) {
+      return res.status(404).json({ message: "Routine record not found" });
+    }
+
+    // Safely parse routines array if stored as stringified JSON
+    let routines =
+      typeof routineRecord.routines === "string"
+        ? JSON.parse(routineRecord.routines)
+        : [...(routineRecord.routines || [])];
+
+    if (taskIndex < 0 || taskIndex >= routines.length) {
+      return res.status(400).json({ message: "Task index out of bounds" });
+    }
+
+    // Remove targeted item from array
+    routines.splice(taskIndex, 1);
+
+    // Update database record
+    routineRecord.routines = routines;
+    await routineRecord.save();
+
+    res.status(200).json({
+      message: "Task deleted successfully",
+      id: Number(id),
+      routines,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -15,6 +15,10 @@ import { initLiveSession } from "./LiveSession.js";
 import { initProduct } from "./Product.js";
 import { initSupportTeam } from "./SupportTeam.js";
 import { initNutrition } from "./Nutrition.js";
+import DailyRoutine, { initDailyRoutine } from "./DailyRoutine.js"; // 1. Import DailyRoutine
+
+// Initialize DailyRoutine Model
+const DailyRoutineModel = initDailyRoutine(sequelize); // 2. Initialize DailyRoutine
 
 // Initialize Nutrition Model
 const Nutrition = initNutrition(sequelize);
@@ -142,18 +146,6 @@ Course.hasMany(Lecture, {
 Lecture.belongsTo(Course, { foreignKey: "courseId" });
 
 // ==========================================
-// DATABASE SYNC & EXPORTS
-// ==========================================
-const syncDatabase = async () => {
-  try {
-    await sequelize.sync();
-    console.log("Database & tables synchronized successfully.");
-  } catch (error) {
-    console.error("Error synchronizing database:", error);
-  }
-};
-
-// ==========================================
 // COURSE DETAILS <-> LECTURE DETAILS
 // ==========================================
 CourseDetails.hasMany(LectureDetails, {
@@ -164,6 +156,24 @@ CourseDetails.hasMany(LectureDetails, {
 LectureDetails.belongsTo(CourseDetails, {
   foreignKey: "courseDetailsId",
 });
+
+// ==========================================
+// USER & DAILY ROUTINES
+// ==========================================
+User.hasMany(DailyRoutine, { foreignKey: "userId", onDelete: "CASCADE" }); // 3. Set Associations
+DailyRoutine.belongsTo(User, { foreignKey: "userId" });
+
+// ==========================================
+// DATABASE SYNC & EXPORTS
+// ==========================================
+const syncDatabase = async () => {
+  try {
+    await sequelize.sync();
+    console.log("Database & tables synchronized successfully.");
+  } catch (error) {
+    console.error("Error synchronizing database:", error);
+  }
+};
 
 export {
   sequelize,
@@ -183,5 +193,6 @@ export {
   Product,
   SupportTeam,
   Nutrition,
+  DailyRoutine,
   syncDatabase,
 };
