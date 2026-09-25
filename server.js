@@ -5303,6 +5303,79 @@ app.put("/api/posts/:id", async (req, res) => {
 //   }
 // });
 
+app.delete("/api/posts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.query.userid || req.query.userId;
+    // Extract role from query (or use req.user.role if using auth middleware)
+    const role = (req.query.role || req.user?.role || "").toLowerCase();
+
+    // 1. Fetch post to get owner info and media files
+    const post = await Post.findByPk(id);
+
+    if (!post) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Post not found" });
+    }
+
+    // 2. Authorization check (Allow if user is admin OR if user is the post owner)
+    const postUserId = post.userId ? String(post.userId) : "";
+    const incomingUserId = userId ? String(userId) : "";
+    const isAdmin = role === "admin";
+
+    const isOwner = incomingUserId && postUserId === incomingUserId;
+
+    if (!isAdmin && !isOwner) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Unauthorized action" });
+    }
+
+    // 3. Delete attached media files from AWS S3
+    const mediaFiles = Array.isArray(post.mediaFiles) ? post.mediaFiles : [];
+
+    if (mediaFiles.length > 0) {
+      for (const file of mediaFiles) {
+        const fileUrl = file.fileLink || file.url || file.path;
+        const s3Key = getS3KeyFromUrl(fileUrl);
+
+        if (s3Key) {
+          try {
+            await s3.send(
+              new DeleteObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: s3Key,
+              }),
+            );
+            console.log(`Successfully deleted S3 key: ${s3Key}`);
+          } catch (s3Err) {
+            console.error(`Failed to delete S3 key (${s3Key}):`, s3Err);
+          }
+        }
+      }
+    }
+
+    // 4 & 5. Delete associated comments and post inside an atomic transaction
+    await sequelize.transaction(async (t) => {
+      await Comment.destroy({
+        where: { postId: id },
+        transaction: t,
+      });
+
+      await post.destroy({ transaction: t });
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Post and S3 media deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting post:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GET COURSES
 app.get("/api/courses", async (req, res) => {
   try {
