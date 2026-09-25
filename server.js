@@ -1620,6 +1620,73 @@ app.get("/api/posts", async (req, res) => {
 //   }
 // });
 
+// app.get("/api/posts/user/:userId", async (req, res) => {
+//   try {
+//     const { userId } = req.params;
+
+//     // Validate if the userId is a valid integer/number
+//     const parsedUserId = parseInt(userId, 10);
+//     if (isNaN(parsedUserId) || parsedUserId <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid user ID format",
+//       });
+//     }
+
+//     // 1. Fetch posts by userId with aggregated comment count
+//     const postsData = await Post.findAll({
+//       where: { userId: parsedUserId },
+//       attributes: {
+//         include: [
+//           [sequelize.fn("COUNT", sequelize.col("Comments.id")), "commentCount"],
+//         ],
+//       },
+//       include: [
+//         {
+//           model: Comment,
+//           attributes: [], // Exclude comment details from output
+//           required: false,
+//         },
+//       ],
+//       group: ["Post.id"],
+//       order: [["createdAt", "DESC"]],
+//     });
+
+//     // 2. Format response to maintain legacy/MongoDB output schema
+//     const posts = postsData.map((postInstance) => {
+//       const post = postInstance.toJSON();
+
+//       return {
+//         _id: post.id,
+//         userId: post.userId,
+//         content: post.content,
+//         courseType: post.courseType,
+//         language: post.language,
+//         mediaFiles: post.mediaFiles || [],
+//         tagIds: post.tagIds || [],
+//         likeCount: post.likeCount || 0,
+//         likes: post.likes || [],
+//         views: post.views || 0,
+//         commentCount: Number(post.commentCount || 0),
+//         createdAt: post.createdAt,
+//         updatedAt: post.updatedAt,
+//       };
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       count: posts.length,
+//       data: posts,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching user posts:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// });
+
 app.get("/api/posts/user/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -1652,9 +1719,28 @@ app.get("/api/posts/user/:userId", async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    // 2. Format response to maintain legacy/MongoDB output schema
+    // 2. Format response and safely parse stringified mediaFiles JSON
     const posts = postsData.map((postInstance) => {
       const post = postInstance.toJSON();
+
+      // Parse double-serialized/stringified mediaFiles safely into an Array
+      let parsedMediaFiles = [];
+      if (post.mediaFiles) {
+        if (typeof post.mediaFiles === "string") {
+          try {
+            parsedMediaFiles = JSON.parse(post.mediaFiles);
+            // Handle double-stringified JSON case
+            if (typeof parsedMediaFiles === "string") {
+              parsedMediaFiles = JSON.parse(parsedMediaFiles);
+            }
+          } catch (e) {
+            console.error("Failed to parse mediaFiles JSON:", e);
+            parsedMediaFiles = [];
+          }
+        } else if (Array.isArray(post.mediaFiles)) {
+          parsedMediaFiles = post.mediaFiles;
+        }
+      }
 
       return {
         _id: post.id,
@@ -1662,7 +1748,7 @@ app.get("/api/posts/user/:userId", async (req, res) => {
         content: post.content,
         courseType: post.courseType,
         language: post.language,
-        mediaFiles: post.mediaFiles || [],
+        mediaFiles: parsedMediaFiles,
         tagIds: post.tagIds || [],
         likeCount: post.likeCount || 0,
         likes: post.likes || [],
