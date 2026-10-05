@@ -277,9 +277,6 @@ export const generateUploadUrl = async (fileType, folder = "media") => {
 //   }
 // });
 
-app.route('/*').get(function (req, res) {
-  return res.sendFile(path.join(staticRoot + 'index.html'));
-});
 
 
 app.post("/api/register", async (req, res) => {
