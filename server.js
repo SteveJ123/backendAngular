@@ -10616,18 +10616,17 @@ app.get("/api/routines/by-date", async (req, res) => {
         message: "userId and date are required query parameters.",
       });
     }
-
+    // Force date string format YYYY-MM-DD (strips out any ISO time/timezone offset)
+    const formattedDate = typeof date === "string" ? date.split("T")[0] : date;
     // Find the single daily routine record for this user, date, and language
     const routineRecord = await DailyRoutine.findOne({
       where: {
         userId,
-        date,
+        date:formattedDate,
         language: language || "english",
       },
     });
-
-    // Force date string format YYYY-MM-DD (strips out any ISO time/timezone offset)
-    const formattedDate = typeof date === "string" ? date.split("T")[0] : date;
+   
 
     if (!routineRecord) {
       return res.status(200).json({
@@ -10703,6 +10702,46 @@ app.get("/api/routines/by-date", async (req, res) => {
 //   }
 // });
 
+// app.patch("/api/routines/:id/complete", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { taskIndex, isCompleted } = req.body;
+
+//     if (typeof taskIndex !== "number" || typeof isCompleted !== "boolean") {
+//       return res
+//         .status(400)
+//         .json({ message: "taskIndex and isCompleted are required." });
+//     }
+
+//     const routineRecord = await DailyRoutine.findByPk(id);
+//     if (!routineRecord) {
+//       return res.status(404).json({ message: "Routine record not found" });
+//     }
+
+//     let routinesArray =
+//       typeof routineRecord.routines === "string"
+//         ? JSON.parse(routineRecord.routines)
+//         : [...(routineRecord.routines || [])];
+
+//     if (taskIndex < 0 || taskIndex >= routinesArray.length) {
+//       return res.status(400).json({ message: "Invalid taskIndex provided." });
+//     }
+
+//     // Toggle completion for item at taskIndex
+//     routinesArray[taskIndex].isCompleted = isCompleted;
+
+//     routineRecord.routines = routinesArray;
+//     await routineRecord.save();
+
+//     res.status(200).json({
+//       message: "Completion status updated successfully",
+//       routine: routineRecord,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
 app.patch("/api/routines/:id/complete", async (req, res) => {
   try {
     const { id } = req.params;
@@ -10728,10 +10767,16 @@ app.patch("/api/routines/:id/complete", async (req, res) => {
       return res.status(400).json({ message: "Invalid taskIndex provided." });
     }
 
-    // Toggle completion for item at taskIndex
+    // Toggle completion
     routinesArray[taskIndex].isCompleted = isCompleted;
 
-    routineRecord.routines = routinesArray;
+    // 1. Re-assign a new array instance
+    routineRecord.routines = [...routinesArray];
+
+    // 2. CRITICAL FOR SEQUELIZE JSON COLUMNS IN PRODUCTION:
+    // Explicitly notify Sequelize that the 'routines' JSON field was mutated
+    routineRecord.changed("routines", true);
+
     await routineRecord.save();
 
     res.status(200).json({
@@ -10742,7 +10787,6 @@ app.patch("/api/routines/:id/complete", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 // ==========================================
 // 6. DELETE ROUTINE (Admin)
 // ==========================================
