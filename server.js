@@ -277,6 +277,11 @@ export const generateUploadUrl = async (fileType, folder = "media") => {
 //   }
 // });
 
+app.route('/*').get(function (req, res) {
+  return res.sendFile(path.join(staticRoot + 'index.html'));
+});
+
+
 app.post("/api/register", async (req, res) => {
   // 1. Validate required fields before opening a database transaction
   const { username, mobile, password, courseType, language, role } = req.body;
