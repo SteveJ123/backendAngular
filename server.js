@@ -10626,18 +10626,25 @@ app.get("/api/routines/by-date", async (req, res) => {
       },
     });
 
+    // Force date string format YYYY-MM-DD (strips out any ISO time/timezone offset)
+    const formattedDate = typeof date === "string" ? date.split("T")[0] : date;
+
     if (!routineRecord) {
       return res.status(200).json({
         id: null,
         userId: Number(userId),
-        date,
+        date:formattedDate,
         language: language || "english",
         routines: [],
       });
     }
 
     const responseData = routineRecord.toJSON();
-    responseData.date = formatToISTDateString(responseData.date);
+    // responseData.date = formatToISTDateString(responseData.date);
+    // Ensure routines array is parsed if database returns it as string
+    if (typeof responseData.routines === "string") {
+      responseData.routines = JSON.parse(responseData.routines);
+    }
 
     res.status(200).json(responseData);
   } catch (error) {
