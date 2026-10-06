@@ -1,38 +1,6 @@
 import express from "express";
 import Course from "../models/Course.js";
 
-const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
-const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-
-const region = process.env.AWS_REGION || "eu-north-1";
-const bucketName = process.env.AWS_BUCKET_NAME;
-
-const s3Client = new S3Client({
-  region: region,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
-
-// Helper function to generate time-limited signed URL for a given S3 key
-async function getObjectSignedURL(key, expiresInSeconds = 3600) {
-  if (!key) return null;
-  
-  // If a full URL was stored instead of a key, extract the object key
-  if (key.startsWith("http")) {
-    key = key.split(".amazonaws.com/")[1];
-  }
-
-  const command = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-  });
-
-  // Generates URL valid for 1 hour by default
-  const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
-  return signedUrl;
-}
 
 const router = express.Router();
 
@@ -52,57 +20,17 @@ const extractLanguage = (req) => {
 // -----------------------------------------------------------------------------
 // GET: Fetch all courses by language (/api/course?language=Telugu)
 // -----------------------------------------------------------------------------
-// router.get("/", async (req, res) => {
-//   try {
-//     const language = extractLanguage(req);
-//     const courses = await Course.find({ language });
-
-//     return res.status(200).json({ success: true, data: courses });
-//   } catch (error) {
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-router.get("/:id", async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const language = extractLanguage(req);
-    // Use .lean() so we can modify the returned object properties easily
-    const course = await Course.findOne({ _id: req.params.id, language }).lean();
+    const courses = await Course.find({ language });
 
-    if (!course) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Course not found" });
-    }
-
-    // 1. Sign main course thumbnail if key exists
-    if (course.thumbnailKey) {
-      course.thumbnailUrl = await getObjectSignedURL(course.thumbnailKey);
-    }
-
-    // 2. Map through lectures/modules and generate pre-signed URLs for media files
-    if (course.lectures && Array.isArray(course.lectures)) {
-      course.lectures = await Promise.all(
-        course.lectures.map(async (lecture) => {
-          if (lecture.videoKey) {
-            lecture.videoUrl = await getObjectSignedURL(lecture.videoKey, 3600); // 1 hr expiry
-          }
-          if (lecture.audioKey) {
-            lecture.audioUrl = await getObjectSignedURL(lecture.audioKey, 3600);
-          }
-          if (lecture.imageKey) {
-            lecture.imageUrl = await getObjectSignedURL(lecture.imageKey, 3600);
-          }
-          return lecture;
-        })
-      );
-    }
-
-    return res.status(200).json({ success: true, data: course });
+    return res.status(200).json({ success: true, data: courses });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
+
 // -----------------------------------------------------------------------------
 // GET: Fetch single course by ID & language (/api/course/:id?language=English)
 // -----------------------------------------------------------------------------
