@@ -171,11 +171,12 @@ app.use(
 // 3. Handle Preflight OPTIONS Requests explicitly
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads"))); 
 
 // Connect to MongoDB Atlas
 // connectDB();
-
+console.log("Configured Region:", JSON.stringify(process.env.AWS_REGION));
+console.log("Configured Bucket:", JSON.stringify(process.env.AWS_BUCKET_NAME)); 
 const s3 = new S3Client({
   region: process.env.AWS_REGION,
   credentials: {
@@ -10192,7 +10193,7 @@ app.post("/api/upload_parallel", uploadS3.single("file"), async (req, res) => {
       message: error.message,
     });
   }
-});
+}); 
 
 /**
  * Deletes file from the root 'uploads' directory
