@@ -4,24 +4,21 @@ import { Course, Lecture } from "../models/index.js";
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
-const region = process.env.AWS_REGION || "eu-north-1";
-const bucketName = process.env.AWS_BUCKET_NAME || "faceyogacourses";
+const region = (process.env.AWS_REGION || "eu-north-1").trim().replace(/['"]/g, "");
+const bucketName = (process.env.AWS_BUCKET_NAME || "faceyogacourses").trim().replace(/['"]/g, "");
 
 const s3Client = new S3Client({
   region: region,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: (process.env.AWS_ACCESS_KEY_ID || "").trim().replace(/['"]/g, ""),
+    secretAccessKey: (process.env.AWS_SECRET_ACCESS_KEY || "").trim().replace(/['"]/g, ""),
   },
 });
 
-// Helper to extract S3 Key from URL/path and generate a presigned URL
 async function generatePresignedUrl(urlOrKey, expiresInSeconds = 3600) {
   if (!urlOrKey) return null;
-
   let key = urlOrKey;
 
-  // Extract key if a full S3 URL is provided
   if (key.includes(".amazonaws.com/")) {
     key = key.split(".amazonaws.com/")[1];
   }
@@ -31,11 +28,10 @@ async function generatePresignedUrl(urlOrKey, expiresInSeconds = 3600) {
       Bucket: bucketName,
       Key: key,
     });
-
     return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
   } catch (error) {
-    console.error(`Error generating presigned URL for key "${key}":`, error);
-    return urlOrKey; // Fallback to raw string if signing fails
+    console.error(`Error pre-signing key "${key}":`, error.message);
+    return urlOrKey;
   }
 }
 
@@ -93,28 +89,68 @@ router.get("/", async (req, res) => {
 //   }
 // });
 
+// router.get("/:id", async (req, res) => {
+//   try {
+//     const language = extractLanguage(req);
+    
+//     // Use .lean() to allow modifying the returned Mongoose object/JSON directly
+//     let course = await Course.findOne({ _id: req.params.id, language }).lean();
+
+//     if (!course) {
+//       return res.status(404).json({ success: false, message: "Course not found" });
+//     }
+
+//     // 1. Sign Course Thumbnail
+//     if (course.thumbnail) {
+//       course.thumbnail = await generatePresignedUrl(course.thumbnail, 3600);
+//     }
+
+//     // 2. Sign Video URLs across Lectures
+//     if (course.lectures && Array.isArray(course.lectures)) {
+//       course.lectures = await Promise.all(
+//         course.lectures.map(async (lecture) => {
+//           if (lecture.videoUrl) {
+//             lecture.videoUrl = await generatePresignedUrl(lecture.videoUrl, 3600); // 1 hour expiry
+//           }
+//           return lecture;
+//         })
+//       );
+//     }
+
+//     return res.status(200).json({ success: true, data: course });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
 router.get("/:id", async (req, res) => {
   try {
-    const language = extractLanguage(req);
-    
-    // Use .lean() to allow modifying the returned Mongoose object/JSON directly
-    let course = await Course.findOne({ _id: req.params.id, language }).lean();
+    const language = req.query.language || "Telugu";
 
-    if (!course) {
+    // 1. Fetch course with lectures association
+    const courseInstance = await Course.findOne({
+      where: { id: req.params.id, language },
+      include: [{ model: Lecture, as: "lectures" }],
+    });
+
+    if (!courseInstance) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
 
-    // 1. Sign Course Thumbnail
+    // 2. Convert Sequelize Instance to Plain JS Object
+    const course = courseInstance.get({ plain: true });
+
+    // 3. Pre-sign Course Thumbnail
     if (course.thumbnail) {
       course.thumbnail = await generatePresignedUrl(course.thumbnail, 3600);
     }
 
-    // 2. Sign Video URLs across Lectures
+    // 4. Pre-sign Lecture Video URLs
     if (course.lectures && Array.isArray(course.lectures)) {
       course.lectures = await Promise.all(
         course.lectures.map(async (lecture) => {
           if (lecture.videoUrl) {
-            lecture.videoUrl = await generatePresignedUrl(lecture.videoUrl, 3600); // 1 hour expiry
+            lecture.videoUrl = await generatePresignedUrl(lecture.videoUrl, 3600);
           }
           return lecture;
         })
@@ -123,6 +159,7 @@ router.get("/:id", async (req, res) => {
 
     return res.status(200).json({ success: true, data: course });
   } catch (error) {
+    console.error("GET course error:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
