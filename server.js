@@ -113,7 +113,7 @@ import {
   Nutrition,
   DailyRoutine,
 } from "./models/index.js";
-
+import mysql from "mysql2/promise";
 // 7. Express App Initialization
 const app = express();
 app.use(cors());
@@ -10875,6 +10875,51 @@ app.delete("/api/routines/:id/task/:index", async (req, res) => {
 
 // Mount the course routes under the '/api/courses' prefix
 app.use("/api/course", courseRoutes);
+
+const db_bhagavatgitainpracticallife = mysql.createPool({
+  host: process.env.DB_HOST_BHAGAVATGITAINPRACTICALLIFE,
+  user: process.env.DB_USER_BHAGAVATGITAINPRACTICALLIFE,
+  password: process.env.DB_PASSWORD_BHAGAVATGITAINPRACTICALLIFE,
+  database: process.env.DB_NAME_BHAGAVATGITAINPRACTICALLIFE,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+app.get('/api/bhagavatgitainpracticallifeusers', async (req, res) => {
+  try {
+    const [rows] = await db_bhagavatgitainpracticallife.query(`
+      SELECT 
+        id, 
+        fullName, 
+        email, 
+        whatsappNumber, 
+        challenges, 
+        created_at, 
+        razorpay_order_id, 
+        razorpay_payment_id, 
+        payment_status 
+      FROM users 
+      ORDER BY id DESC
+    `);
+
+    return res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Database Query Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch users from database',
+      error: error.message
+    });
+  }
+});
+
+// Create MySQL Connection Pool
+
 
 const PORT = process.env.PORT || 5000;
 // app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
