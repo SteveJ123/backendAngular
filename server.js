@@ -5421,7 +5421,7 @@ app.get("/api/leaderboard", async (req, res) => {
     // Top 4 All-Time (Sorted by points DESC)
     const allTime = [...processedUsers]
       .sort((a, b) => b.points - a.points)
-      .slice(0, 9);
+      .slice(0, 10);
 
     // Top 4 Monthly (Sorted by monthlyCount DESC, then points DESC)
     const monthly = [...processedUsers]
